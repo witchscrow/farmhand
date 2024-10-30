@@ -1,3 +1,5 @@
+pub mod users;
+
 use sqlx::postgres::PgPool;
 
 /// Function to establish a connection to the PostgreSQL database
