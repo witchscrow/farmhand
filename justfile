@@ -8,3 +8,17 @@ start-web:
 
 dev-web:
     yarn dev
+
+init-db: create-db migrate
+
+create-db:
+    sqlx database create
+
+drop-db:
+    sqlx database drop
+
+migrate:
+    sqlx migrate run --source packages/db/migrations
+
+revert:
+    sqlx migrate run --source packages/db/migrations
