@@ -8,6 +8,7 @@
     "packages/web"
   ],
   "scripts": {
-    "start": "yarn workspace web start"
+    "start": "yarn workspace web start",
+    "dev": "yarn workspace web dev"
   }
 }
