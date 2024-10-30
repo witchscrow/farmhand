@@ -1,6 +1,12 @@
 mod config;
+mod routes;
 
-use axum::{extract::DefaultBodyLimit, response::IntoResponse, routing::get, Router};
+use axum::{
+    extract::DefaultBodyLimit,
+    response::IntoResponse,
+    routing::{get, post},
+    Router,
+};
 use config::Config;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -47,7 +53,12 @@ async fn main() {
     // Initialize our router with the shared state and required routes
     let app = Router::new()
         .route("/", get(index))
-        .layer(DefaultBodyLimit::max(10 * 1024 * 1024 * 1024))
+        .nest(
+            "/auth",
+            Router::new().route("/register", post(routes::auth::register)),
+        )
+        .route("/register", post(routes::auth::register))
+        .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)) // 5GB limit
         .with_state(state)
         .layer(
             TraceLayer::new_for_http()
