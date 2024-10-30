@@ -9,12 +9,12 @@
 		// @ts-expect-error should fallback to dark if nothing is set
 		theme =
 			savedTheme ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-		document.body.className = theme;
+		document.documentElement.className = theme;
 	});
 
 	function toggleTheme() {
 		theme = theme === 'dark' ? 'light' : 'dark';
-		document.body.className = theme;
+		document.documentElement.className = theme;
 		localStorage.setItem('theme', theme);
 	}
 </script>
