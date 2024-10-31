@@ -22,3 +22,6 @@ migrate:
 
 revert:
     sqlx migrate run --source packages/db/migrations
+
+build-web:
+    yarn build
