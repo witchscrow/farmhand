@@ -6,6 +6,8 @@ start-api:
 start-web:
     yarn start
 
+dev-api: start-api
+
 dev-web:
     yarn dev
 
