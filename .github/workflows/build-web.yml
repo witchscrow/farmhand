@@ -42,7 +42,6 @@ jobs:
         with:
           path: |
             packages/web/.svelte-kit
-            packages/web/build
           key: ${{ runner.os }}-web-build-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-web-build-
