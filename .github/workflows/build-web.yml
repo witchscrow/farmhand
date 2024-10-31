@@ -36,6 +36,12 @@ jobs:
             yarn.lock
             packages/web/yarn.lock
 
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
+
       # Cache the build output directory
       - name: Cache build output
         uses: actions/cache@v3
@@ -56,9 +62,3 @@ jobs:
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-node-modules-
-
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: Build
-        run: yarn build
