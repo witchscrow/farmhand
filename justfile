@@ -5,3 +5,6 @@ start-api:
 
 start-web:
     yarn start-web
+
+build-web:
+    yarn build
