@@ -3,16 +3,8 @@ name: build api
 on:
   push:
     branches: [main]
-    paths:
-      - "packages/api/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
   pull_request:
     branches: [main]
-    paths:
-      - "packages/api/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
 
 jobs:
   build:
