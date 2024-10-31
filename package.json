@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "start": "yarn workspace web start",
+    "dev": "yarn workspace web dev",
     "build": "yarn workspace web build"
   }
 }
