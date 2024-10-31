@@ -11,6 +11,10 @@
 	let hideMenu: (ev?: Event) => void;
 	let account: HTMLElement | null;
 	let menu: HTMLElement | null;
+	export let user: {
+		username: string;
+		email: string;
+	};
 
 	onMount(() => {
 		account = document.getElementById('account');
@@ -70,11 +74,6 @@
 			}
 		};
 	}
-
-	export let user = {
-		name: 'sneakycrow',
-		email: 'zach@sneakycrow.dev'
-	};
 </script>
 
 <Button id="account">
@@ -96,7 +95,7 @@
 >
 	<aside class="px-6 py-4 text-primary-50 dark:text-white">
 		<p class="text-xs font-medium">Signed in as</p>
-		<p class="text-lg font-semibold">{user.name}</p>
+		<p class="text-lg font-semibold">{user.username}</p>
 		<p class="text-base text-primary-200 dark:text-primary-200">{user.email}</p>
 	</aside>
 	<hr class="border-primary-800" />

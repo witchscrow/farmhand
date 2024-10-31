@@ -4,7 +4,7 @@
 	import MyAccount from './MyAccount.svelte';
 	import ThemeToggler from './ThemeToggler.svelte';
 
-	export let user: object | null = null;
+	export let user: { username: string; email: string } | null = null;
 </script>
 
 <header class="flex w-full items-center justify-center text-black dark:text-white">
@@ -30,7 +30,7 @@
 		</ul>
 		<aside class="flex items-center space-x-2">
 			{#if user}
-				<MyAccount />
+				<MyAccount {user} />
 			{:else}
 				<Button href="/login">Log in</Button>
 				<Button href="/register">Register</Button>
