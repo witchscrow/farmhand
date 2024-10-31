@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Alert from '$lib/components/Alert.svelte';
+	import Throbber from '$lib/components/Throbber.svelte';
 	import { enhance } from '$app/forms';
 	import type { ActionResult } from '@sveltejs/kit';
 	import Button from '$lib/components/Button.svelte';
@@ -48,6 +49,7 @@
 
 		<Button type="submit" disabled={isLoading} class="w-full border-primary-950 py-2">
 			{#if isLoading}
+				<Throbber />
 				<span class="w-full text-center">Logging in...</span>
 			{:else}
 				<span class="w-full text-center">Login</span>

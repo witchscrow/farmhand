@@ -2,15 +2,16 @@ use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2, PasswordVerifier,
 };
+use serde::{Deserialize, Serialize};
 use sqlx::{types::Uuid, PgPool};
 
-#[derive(sqlx::FromRow)]
+#[derive(sqlx::FromRow, Serialize, Deserialize, Clone)]
 /// A database representation of a user
 pub struct User {
     pub id: Uuid,
     pub email: String,
     pub username: String,
-    pub password_hash: String,
+    password_hash: String,
 }
 
 pub enum UserError {

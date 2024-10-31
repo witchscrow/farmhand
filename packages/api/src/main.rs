@@ -65,7 +65,10 @@ async fn main() {
             "/user",
             Router::new()
                 .route("/me", get(routes::user::get_user))
-                .layer(axum_mw::from_fn(middleware::auth::auth_middleware)),
+                .layer(axum_mw::from_fn_with_state(
+                    state.clone(),
+                    middleware::auth::auth_middleware,
+                )),
         )
         .route("/register", post(routes::auth::register))
         // TODO: Attach this to the upload route when you re-add it

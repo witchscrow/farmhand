@@ -7,6 +7,7 @@
 	import Chevron from './icons/Chevron.svelte';
 	import MyAccount from './icons/MyAccount.svelte';
 	import { enhance } from '$app/forms';
+	import { user } from '$lib/user';
 
 	let hideMenu: (ev?: Event) => void;
 	let account: HTMLElement | null;
@@ -70,65 +71,62 @@
 			}
 		};
 	}
-
-	export let user = {
-		name: 'sneakycrow',
-		email: 'zach@sneakycrow.dev'
-	};
 </script>
 
-<Button id="account">
-	<span>Account</span>
-	<Chevron
-		class="ml-2 transition-transform {menu?.style.display === 'block' ? 'rotate-180' : ''}"
-	/>
-</Button>
+{#if $user}
+	<Button id="account">
+		<span>Account</span>
+		<Chevron
+			class="ml-2 transition-transform {menu?.style.display === 'block' ? 'rotate-180' : ''}"
+		/>
+	</Button>
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
-<div
-	id="menu"
-	role="menu"
-	use:clickOutside
-	on:clickoutside={hideMenu}
-	on:click={hideMenu}
-	tabindex="0"
-	class="min-w-52 rounded border-2 border-primary-800 bg-primary-900"
->
-	<aside class="px-6 py-4 text-primary-50 dark:text-white">
-		<p class="text-xs font-medium">Signed in as</p>
-		<p class="text-lg font-semibold">{user.name}</p>
-		<p class="text-base text-primary-200 dark:text-primary-200">{user.email}</p>
-	</aside>
-	<hr class="border-primary-800" />
-	<ul class="p-2">
-		<li>
-			<a
-				href="/account"
-				class="flex w-full flex-nowrap items-center rounded px-4 py-2 font-semibold text-primary-50 hover:bg-primary-800 dark:text-white"
-			>
-				<MyAccount class="mr-2" />
-				<span>My Account</span>
-			</a>
-		</li>
-		<li>
-			<form action="?/logout" method="POST" use:enhance>
-				<button
+	<!-- svelte-ignore a11y-click-events-have-key-events -->
+	<div
+		id="menu"
+		role="menu"
+		use:clickOutside
+		on:clickoutside={hideMenu}
+		on:click={hideMenu}
+		tabindex="0"
+		class="min-w-52 rounded border-2 border-primary-800 bg-primary-900"
+	>
+		<aside class="px-6 py-4 text-primary-50 dark:text-white">
+			<p class="text-xs font-medium">Signed in as</p>
+			<p class="text-lg font-semibold">{$user.username}</p>
+			<p class="text-base text-primary-200 dark:text-primary-200">{$user.email}</p>
+		</aside>
+		<hr class="border-primary-800" />
+		<ul class="p-2">
+			<li>
+				<a
+					href="/account"
 					class="flex w-full flex-nowrap items-center rounded px-4 py-2 font-semibold text-primary-50 hover:bg-primary-800 dark:text-white"
 				>
-					<SignOut class="mr-2" />
-					<span>Sign out</span>
-				</button>
-			</form>
-		</li>
-	</ul>
-</div>
+					<MyAccount class="mr-2" />
+					<span>My Account</span>
+				</a>
+			</li>
+			<li>
+				<form action="?/logout" method="POST" use:enhance>
+					<button
+						class="flex w-full flex-nowrap items-center rounded px-4 py-2 font-semibold text-primary-50 hover:bg-primary-800 dark:text-white"
+					>
+						<SignOut class="mr-2" />
+						<span>Sign out</span>
+					</button>
+				</form>
+			</li>
+		</ul>
+	</div>
 
-<style>
-	#menu {
-		display: none;
-		width: max-content;
-		position: absolute;
-		top: 0;
-		left: 0;
-	}
-</style>
+	<style>
+		#menu {
+			display: none;
+			width: max-content;
+			position: absolute;
+			top: 0;
+			left: 0;
+		}
+	</style>
+{/if}

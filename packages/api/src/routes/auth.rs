@@ -1,12 +1,6 @@
 use std::sync::Arc;
 
-use axum::{
-    body::Body,
-    extract::State,
-    http::{header, HeaderValue, StatusCode},
-    response::{IntoResponse, Response},
-    Json,
-};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use db::users::User;
 use serde::{Deserialize, Serialize};
 
