@@ -98,6 +98,10 @@ pub async fn login(
     if payload.email.is_none() && payload.username.is_none() {
         return Err(StatusCode::BAD_REQUEST);
     }
+    // Make sure the password isn't empty
+    if payload.password.is_empty() {
+        return Err(StatusCode::BAD_REQUEST);
+    }
     // Grab the user based on either the username or email
     let mut user: Option<User> = None;
     // If the username is provided, it supercedes the email
@@ -119,7 +123,7 @@ pub async fn login(
     // Finally, check the passwords
     if let Some(user) = user {
         user.check_password(payload.password)
-            .map_err(|_| StatusCode::BAD_REQUEST)?;
+            .map_err(|_| StatusCode::BAD_REQUEST)?;and return it
         let token =
             encode_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok(get_auth_response(&token))
