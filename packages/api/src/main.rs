@@ -1,8 +1,10 @@
 mod config;
+mod jwt;
+mod middleware;
 mod routes;
 
 use axum::{
-    extract::DefaultBodyLimit,
+    middleware as axum_mw,
     response::IntoResponse,
     routing::{get, post},
     Router,
@@ -57,8 +59,15 @@ async fn main() {
             "/auth",
             Router::new().route("/register", post(routes::auth::register)),
         )
+        .nest(
+            "/user",
+            Router::new()
+                .route("/me", get(routes::user::get_user))
+                .layer(axum_mw::from_fn(middleware::auth::auth_middleware)),
+        )
         .route("/register", post(routes::auth::register))
-        .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)) // 5GB limit
+        // TODO: Attach this to the upload route when you re-add it
+        // .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)) // 5GB limit
         .with_state(state)
         .layer(
             TraceLayer::new_for_http()

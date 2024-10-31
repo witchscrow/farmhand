@@ -4,7 +4,7 @@ use axum::{extract::State, http::StatusCode, Json};
 use db::users::{hash_password, insert_user};
 use serde::{Deserialize, Serialize};
 
-use crate::AppState;
+use crate::{jwt::encode_jwt, AppState};
 
 #[derive(Deserialize)]
 pub struct RegisterRequest {
@@ -12,6 +12,11 @@ pub struct RegisterRequest {
     email: String,
     password: String,
     password_confirmation: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct RegisterResponse {
+    token: String,
 }
 
 #[derive(Serialize)]
@@ -23,7 +28,7 @@ pub struct ErrorResponse {
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterRequest>,
-) -> Result<StatusCode, (StatusCode, Json<ErrorResponse>)> {
+) -> Result<Json<RegisterResponse>, (StatusCode, Json<ErrorResponse>)> {
     // Validate inputs
     if payload.password != payload.password_confirmation {
         return Err((
@@ -48,7 +53,17 @@ pub async fn register(
 
     // Insert the new user into the database
     match insert_user(&state.db, &payload.email, &payload.username, &password_hash).await {
-        Ok(_) => Ok(StatusCode::CREATED),
+        Ok(user_id) => {
+            let token = encode_jwt(&user_id).map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        message: "Could not encode JWT token".to_string(),
+                    }),
+                )
+            })?;
+            Ok(Json(RegisterResponse { token }))
+        }
         Err(e) => {
             let error_message = match e {
                 sqlx::Error::Database(ref db_error) if db_error.is_unique_violation() => {
