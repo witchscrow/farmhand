@@ -54,8 +54,14 @@ pub async fn register(
     // Insert the new user into the database
     match insert_user(&state.db, &payload.email, &payload.username, &password_hash).await {
         Ok(user_id) => {
-            let token =
-                encode_jwt(&user_id).map_err(|_| return Err(StatusCode::INTERNAL_SERVER_ERROR))?;
+            let token = encode_jwt(&user_id).map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        message: "Could not encode JWT token".to_string(),
+                    }),
+                )
+            })?;
             Ok(Json(RegisterResponse { token }))
         }
         Err(e) => {

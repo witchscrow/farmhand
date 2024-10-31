@@ -4,7 +4,6 @@ mod middleware;
 mod routes;
 
 use axum::{
-    extract::DefaultBodyLimit,
     middleware as axum_mw,
     response::IntoResponse,
     routing::{get, post},
