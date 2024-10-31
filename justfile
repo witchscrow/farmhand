@@ -25,3 +25,6 @@ revert:
 
 build-web:
     yarn build
+
+build-api:
+    cargo build -p api
