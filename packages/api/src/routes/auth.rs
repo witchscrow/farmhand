@@ -28,32 +28,13 @@ pub struct LoginRequest {
 }
 
 #[derive(Serialize)]
-pub struct ErrorResponse {
-    message: String,
+pub struct AuthResponse {
+    token: String,
 }
 
-/// A function for setting a JWT to a response cookie
-fn get_auth_response(jwt_token: &str) -> impl IntoResponse {
-    let mut response = Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::empty())
-        .unwrap();
-    let cookie = format!(
-        "jwt={}; HttpOnly; Path=/; Max-Age=86400; SameSite=Strict{}",
-        jwt_token,
-        if cfg!(debug_assertions) {
-            ""
-        } else {
-            "; Secure"
-        }
-    );
-    let cookie_header = HeaderValue::from_str(&cookie).expect("Could not parse cookie header");
-
-    response
-        .headers_mut()
-        .insert(header::SET_COOKIE, cookie_header);
-
-    response
+#[derive(Serialize)]
+pub struct ErrorResponse {
+    message: String,
 }
 
 /// Handle user registration with password hashing and validation
@@ -81,8 +62,7 @@ pub async fn register(
         Ok(user) => {
             let token =
                 encode_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-            let response = get_auth_response(&token);
-            Ok(response)
+            Ok(Json(AuthResponse { token }))
         }
         Err(_e) => Err(StatusCode::BAD_REQUEST),
     }
@@ -126,24 +106,8 @@ pub async fn login(
             .map_err(|_| StatusCode::BAD_REQUEST)?;
         let token =
             encode_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        Ok(get_auth_response(&token))
+        Ok(Json(AuthResponse { token }))
     } else {
         Err(StatusCode::INTERNAL_SERVER_ERROR)
     }
-}
-
-/// Logout a user, clears the JWT cookie
-pub async fn logout() -> Response {
-    let mut response = Response::builder()
-        .status(StatusCode::OK)
-        .body(Body::empty())
-        .unwrap();
-
-    let cookie = "jwt=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict";
-    let cookie_header = HeaderValue::from_str(cookie).unwrap();
-    response
-        .headers_mut()
-        .insert(header::SET_COOKIE, cookie_header);
-
-    response
 }

@@ -59,8 +59,7 @@ async fn main() {
             "/auth",
             Router::new()
                 .route("/register", post(routes::auth::register))
-                .route("/login", post(routes::auth::login))
-                .route("/logout", get(routes::auth::logout)),
+                .route("/login", post(routes::auth::login)),
         )
         .nest(
             "/user",
