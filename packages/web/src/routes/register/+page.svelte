@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Throbber from '$lib/components/Throbber.svelte';
 	import Alert from '$lib/components/Alert.svelte';
+	import Button from '$lib/components/Button.svelte';
 	import { enhance } from '$app/forms';
 	import type { ActionData } from './$types';
 
@@ -8,96 +9,68 @@
 	let isSubmitting = false;
 </script>
 
-<form
-	method="POST"
-	use:enhance={() => {
-		isSubmitting = true;
-		return async ({ update }) => {
-			await update();
-			isSubmitting = false;
-		};
-	}}
-	class="dark:bg-secondary-950 mx-auto mt-8 max-w-sm rounded-lg bg-white p-6 shadow-md dark:shadow-xl"
->
-	{#if form?.error}
-		<Alert type="error" message={form.error} />
-	{/if}
-
-	<label class="mb-4 block">
-		<span class="text-secondary-800 dark:text-secondary-100 text-sm">Username</span>
-		<input
-			name="username"
-			type="text"
-			value={form?.username ?? ''}
-			class="border-secondary-200 focus:border-accent-500 focus:ring-accent-200
-                   dark:border-secondary-800 dark:bg-secondary-900 dark:text-secondary-100
-                   dark:focus:border-accent-400 dark:focus:ring-accent-900
-                   mt-1 block w-full rounded-md
-                   bg-white text-base shadow-sm
-                   focus:ring focus:ring-opacity-50"
-		/>
-	</label>
-
-	<label class="mb-4 block">
-		<span class="text-secondary-800 dark:text-secondary-100 text-sm">Email</span>
-		<input
-			name="email"
-			type="email"
-			value={form?.email ?? ''}
-			class="border-secondary-200 focus:border-accent-500 focus:ring-accent-200
-                   dark:border-secondary-800 dark:bg-secondary-900 dark:text-secondary-100
-                   dark:focus:border-accent-400 dark:focus:ring-accent-900
-                   mt-1 block w-full rounded-md
-                   bg-white text-base shadow-sm
-                   focus:ring focus:ring-opacity-50"
-		/>
-	</label>
-
-	<label class="mb-4 block">
-		<span class="text-secondary-800 dark:text-secondary-100 text-sm">Password</span>
-		<input
-			name="password"
-			type="password"
-			class="border-secondary-200 focus:border-accent-500 focus:ring-accent-200
-                   dark:border-secondary-800 dark:bg-secondary-900 dark:text-secondary-100
-                   dark:focus:border-accent-400 dark:focus:ring-accent-900
-                   mt-1 block w-full rounded-md
-                   bg-white text-base shadow-sm
-                   focus:ring focus:ring-opacity-50"
-		/>
-	</label>
-
-	<label class="mb-4 block">
-		<span class="text-secondary-800 dark:text-secondary-100 text-sm">Confirm Password</span>
-		<input
-			name="passwordConfirmation"
-			type="password"
-			class="border-secondary-200 focus:border-accent-500 focus:ring-accent-200
-                   dark:border-secondary-800 dark:bg-secondary-900 dark:text-secondary-100
-                   dark:focus:border-accent-400 dark:focus:ring-accent-900
-                   mt-1 block w-full rounded-md
-                   bg-white text-base shadow-sm
-                   focus:ring focus:ring-opacity-50"
-		/>
-	</label>
-
-	<button
-		disabled={isSubmitting}
-		class="bg-accent-500 hover:bg-accent-600 focus:ring-accent-400
-               dark:bg-accent-600 dark:hover:bg-accent-500 dark:focus:ring-accent-300
-               dark:focus:ring-offset-secondary-950
-               flex w-full items-center justify-center
-               gap-2 rounded-md px-4 py-2
-               text-sm font-medium text-white
-               focus:outline-none focus:ring-2
-               focus:ring-offset-2
-               disabled:cursor-not-allowed disabled:opacity-50"
+<section class="flex flex-col items-center justify-center">
+	<aside class="flex flex-col space-y-4 text-center">
+		<h1 class="font-serif text-3xl text-primary-800">Register</h1>
+		<p>Register for a farmhand account</p>
+	</aside>
+	<form
+		method="POST"
+		use:enhance={() => {
+			isSubmitting = true;
+			return async ({ update }) => {
+				await update();
+				isSubmitting = false;
+			};
+		}}
+		class="mt-8 w-full max-w-sm flex-grow rounded border-2 border-secondary-950 bg-white p-6 shadow-md dark:border-black dark:bg-primary-900 dark:shadow-xl"
 	>
-		{#if isSubmitting}
-			<Throbber />
-			<span>Registering...</span>
-		{:else}
-			<span>Register</span>
+		{#if form?.error}
+			<Alert type="error" message={form.error} />
 		{/if}
-	</button>
-</form>
+
+		<label class="mb-4 flex flex-col justify-start space-y-2">
+			<span class="text-sm text-secondary-800 dark:text-primary-100">Username</span>
+			<input
+				class="rounded border-2 text-black placeholder-primary-200 dark:border-primary-950 dark:bg-primary-800 dark:text-primary-50"
+				name="username"
+				type="text"
+				value={form?.username ?? ''}
+			/>
+		</label>
+		<label class="mb-4 flex flex-col justify-start space-y-2">
+			<span class="text-sm text-secondary-800 dark:text-primary-100">Email</span>
+			<input
+				name="email"
+				type="email"
+				value={form?.email ?? ''}
+				class="rounded border-2 text-black placeholder-primary-200 dark:border-primary-950 dark:bg-primary-800 dark:text-primary-50"
+			/>
+		</label>
+		<label class="mb-4 flex flex-col justify-start space-y-2">
+			<span class="text-sm text-secondary-800 dark:text-secondary-100">Password</span>
+			<input
+				class="rounded border-2 text-black placeholder-primary-200 dark:border-primary-950 dark:bg-primary-800 dark:text-primary-50"
+				name="password"
+				type="password"
+			/>
+		</label>
+		<label class="mb-4 flex flex-col justify-start space-y-2">
+			<span class="text-sm text-secondary-800 dark:text-secondary-100">Confirm Password</span>
+			<input
+				name="passwordConfirmation"
+				type="password"
+				class="rounded border-2 text-black placeholder-primary-200 dark:border-primary-950 dark:bg-primary-800 dark:text-primary-50"
+			/>
+		</label>
+
+		<Button type="submit" disabled={isSubmitting} class="w-full border-primary-950 py-2">
+			{#if isSubmitting}
+				<Throbber />
+				<span class="w-full text-center">Registering...</span>
+			{:else}
+				<span class="w-full text-center">Register</span>
+			{/if}
+		</Button>
+	</form>
+</section>
