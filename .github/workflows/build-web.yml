@@ -3,18 +3,8 @@ name: build web
 on:
   push:
     branches: [main]
-    paths:
-      - "packages/web/**"
-      - "package.json"
-      - "yarn.lock"
-      - ".github/workflows/build-web.yml"
   pull_request:
     branches: [main]
-    paths:
-      - "packages/web/**"
-      - "package.json"
-      - "yarn.lock"
-      - ".github/workflows/build-web.yml"
 
 jobs:
   build:
