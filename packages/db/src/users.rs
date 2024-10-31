@@ -82,7 +82,7 @@ impl User {
     }
 }
 
-/// Hash a password using Argon2
+/// Hash a string using Argon2
 pub fn hash_string(password: &str) -> Result<String, argon2::password_hash::Error> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
