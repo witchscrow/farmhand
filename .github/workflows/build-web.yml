@@ -1,0 +1,65 @@
+name: Build Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/web/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".github/workflows/build-web.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "packages/web/**"
+      - "package.json"
+      - "yarn.lock"
+      - ".github/workflows/build-web.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: packages/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: |
+            yarn.lock
+            packages/web/yarn.lock
+
+      # Cache the build output directory
+      - name: Cache build output
+        uses: actions/cache@v3
+        with:
+          path: |
+            packages/web/.svelte-kit
+            packages/web/build
+          key: ${{ runner.os }}-web-build-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-web-build-
+
+      # Cache node_modules
+      - name: Cache node_modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/web/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build
+        run: yarn build
