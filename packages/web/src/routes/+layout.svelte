@@ -5,17 +5,14 @@
 	import type { Snippet } from 'svelte';
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
-	import ThemeToggler from '$lib/components/ThemeToggler.svelte';
 	import Header from '$lib/components/Header.svelte';
+	import Footer from '$lib/components/Footer.svelte';
 </script>
 
-<Header />
-<main>
-	{#if isAuthenticated}
-		<pre>{JSON.stringify(data, null, 2)}</pre>
-	{/if}
-	<div class="fixed right-4 top-4 z-50">
-		<ThemeToggler />
-	</div>
-	{@render children()}
+<main class="flex min-h-screen flex-col">
+	<Header user={data.user} />
+	<section class="mx-auto min-h-full w-full max-w-screen-lg flex-grow p-4">
+		{@render children()}
+	</section>
+	<Footer />
 </main>

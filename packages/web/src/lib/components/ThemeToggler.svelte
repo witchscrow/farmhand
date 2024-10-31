@@ -21,7 +21,7 @@
 
 <button
 	type="button"
-	class="text-primary-800 hover:bg-primary-100 focus:ring-primary-200 dark:text-primary-200 dark:hover:bg-primary-700 dark:focus:ring-primary-700 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-4"
+	class="rounded-sm p-2 text-sm text-primary-800 hover:bg-primary-100 focus:outline-none focus:ring-4 focus:ring-primary-200 dark:text-primary-200 dark:hover:bg-primary-700 dark:focus:ring-primary-700"
 	on:click={toggleTheme}
 >
 	{#if theme === 'dark'}
