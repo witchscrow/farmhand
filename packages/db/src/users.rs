@@ -10,17 +10,17 @@ pub async fn insert_user(
     email: &str,
     username: &str,
     password: &str,
-) -> Result<(), sqlx::Error> {
-    let id = Uuid::new_v4();
+) -> Result<String, sqlx::Error> {
+    let user_id = Uuid::new_v4();
     sqlx::query("INSERT INTO users (id, email, username, password_hash) VALUES ($1, $2, $3, $4)")
-        .bind(id)
+        .bind(user_id)
         .bind(email)
         .bind(username)
         .bind(password)
         .execute(pool)
         .await?;
 
-    Ok(())
+    Ok(user_id.to_string())
 }
 
 // Hash a password using Argon2
