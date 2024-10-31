@@ -123,7 +123,7 @@ pub async fn login(
     // Finally, check the passwords
     if let Some(user) = user {
         user.check_password(payload.password)
-            .map_err(|_| StatusCode::BAD_REQUEST)?;and return it
+            .map_err(|_| StatusCode::BAD_REQUEST)?;
         let token =
             encode_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         Ok(get_auth_response(&token))
