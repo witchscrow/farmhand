@@ -6,9 +6,9 @@ export const load: LayoutServerLoad = async ({ locals, cookies }) => {
 
 	if (locals.authenticated) {
 		const token = cookies.get('jwt');
+		// TODO: Logout user if token is missing
 		if (token) {
 			user = await fetchCurrentUser(token as string);
-			// TODO: Logout user
 		}
 	}
 
