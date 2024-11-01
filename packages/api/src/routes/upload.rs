@@ -1,7 +1,6 @@
 use axum::{
     extract::{Multipart, State},
-    routing::post,
-    Extension, Router,
+    Extension,
 };
 use db::users::User;
 use std::time::Duration;
@@ -13,7 +12,8 @@ use crate::AppState; // Note the AsyncWriteExt trait
 const CHUNK_SIZE: usize = 1024 * 1024; // 1MB chunks
 const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024 * 1024; // 10GB limit
 
-async fn upload_video(
+/// A route for uploading a video
+pub async fn upload_video(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<User>,
     mut multipart: Multipart,
@@ -98,11 +98,4 @@ async fn upload_video(
     }
 
     Err("No file found in request".to_string())
-}
-
-// Error handler for cleanup
-fn cleanup_on_error(path: &Path) {
-    if path.exists() {
-        let _ = std::fs::remove_file(path);
-    }
 }
