@@ -13,7 +13,7 @@
 	</aside>
 	<Card>
 		<div slot="header">
-			<h3 class="font-serif text-3xl text-primary-700">Your Account</h3>
+			<h3 class="font-serif text-lg text-primary-700">Your Account</h3>
 			<p class="text-sm text-gray-700">Basic information of you, the user</p>
 		</div>
 		<div slot="content" class="space-y-1">
