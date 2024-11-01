@@ -1,4 +1,5 @@
 pub mod users;
+pub mod videos;
 
 use sqlx::postgres::PgPool;
 
