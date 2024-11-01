@@ -19,11 +19,17 @@ create-db:
 drop-db:
     sqlx database drop
 
+mig_source := "packages/db/migrations"
+
+mig: migrate
 migrate:
-    sqlx migrate run --source packages/db/migrations
+    sqlx migrate run --source {{ mig_source }}
+
+mig-add mig_name:
+    sqlx migrate add {{ mig_name }} --source {{ mig_source }}
 
 revert:
-    sqlx migrate run --source packages/db/migrations
+    sqlx migrate run --source {{ mig_source }}
 
 build-web:
     yarn build
