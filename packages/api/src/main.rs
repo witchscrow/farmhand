@@ -70,7 +70,6 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
-        .route("/register", post(routes::auth::register))
         // TODO: Attach this to the upload route when you re-add it
         // .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)) // 5GB limit
         .with_state(state)
