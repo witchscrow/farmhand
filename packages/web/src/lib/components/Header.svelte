@@ -15,6 +15,7 @@
 		<!-- You can put additional top menu items here -->
 		<aside class="flex items-center space-x-2">
 			{#if $user}
+				<Button variant="secondary" href="/upload">Upload</Button>
 				<MyAccount />
 			{:else}
 				<Button href="/login">Log in</Button>
