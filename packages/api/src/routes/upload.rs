@@ -106,7 +106,3 @@ fn cleanup_on_error(path: &Path) {
         let _ = std::fs::remove_file(path);
     }
 }
-
-pub fn upload_routes() -> Router {
-    Router::new().route("/upload", post(upload_video))
-}
