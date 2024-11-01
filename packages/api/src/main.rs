@@ -70,6 +70,7 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
+        .route("/upload", post(routes::upload::upload_video))
         // TODO: Attach this to the upload route when you re-add it
         // .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)) // 5GB limit
         .with_state(state)
