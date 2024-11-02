@@ -1,12 +1,11 @@
 <script lang="ts">
 	import '../app.css';
-	import { isAuthenticated } from '$lib/stores/auth';
-	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
-
-	let { data, children }: { data: LayoutData; children: Snippet } = $props();
+	import type { LayoutServerData } from './$types';
 	import Header from '$lib/components/Header.svelte';
 	import Footer from '$lib/components/Footer.svelte';
+
+	let { children, data }: { children: Snippet; data: LayoutServerData } = $props();
 </script>
 
 <main class="flex min-h-screen flex-col">

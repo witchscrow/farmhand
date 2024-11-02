@@ -2,7 +2,6 @@
 	import Form from '$lib/components/Form.svelte';
 	import Input from '$lib/components/Input.svelte';
 	import type { ActionResult } from '@sveltejs/kit';
-
 	export let form: ActionResult;
 </script>
 

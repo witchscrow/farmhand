@@ -7,17 +7,17 @@
 	import Chevron from './icons/Chevron.svelte';
 	import MyAccount from './icons/MyAccount.svelte';
 	import { enhance } from '$app/forms';
-	import { user } from '$lib/user';
+	import type { User } from '$lib/stores/user';
 
 	let hideMenu: (ev?: Event) => void;
 	let account: HTMLElement | null;
 	let menu: HTMLElement | null;
 
+	let { user }: { user: User | null } = $props();
+
 	onMount(() => {
 		account = document.getElementById('account');
 		menu = document.getElementById('menu');
-
-		console.log('With love, Sony AK <sony@sony-ak.com>. GitHub: https://github.com/sonyarianto');
 
 		function update(el: HTMLElement) {
 			if (!menu) return;
@@ -73,7 +73,7 @@
 	}
 </script>
 
-{#if $user}
+{#if user}
 	<Button id="account">
 		<span>Account</span>
 		<Chevron
@@ -93,8 +93,8 @@
 	>
 		<aside class="px-6 py-4 text-primary-50 dark:text-white">
 			<p class="text-xs font-medium">Signed in as</p>
-			<p class="text-lg font-semibold">{$user.username}</p>
-			<p class="text-base text-primary-200 dark:text-primary-200">{$user.email}</p>
+			<p class="text-lg font-semibold">{user.username}</p>
+			<p class="text-base text-primary-200 dark:text-primary-200">{user.email}</p>
 		</aside>
 		<hr class="border-primary-800" />
 		<ul class="p-2">
