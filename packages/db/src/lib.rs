@@ -1,4 +1,8 @@
 pub mod users;
+pub mod videos;
+
+pub use users::User;
+pub use videos::{ProcessingStatus, Video};
 
 use sqlx::postgres::PgPool;
 

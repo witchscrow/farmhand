@@ -8,7 +8,11 @@ axum = { version = "0.7", features = ["multipart", "tracing", "ws"] }
 axum-extra = "0.3"
 chrono = { version = "0.4.31", features = ["serde"] }
 db = { path = "../db" }
+futures = "0.3"
+hex = "0.4"
+sha2 = "0.10"
 jsonwebtoken = "8.1"
+lazy_static = "1.4"
 nanoid = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -18,9 +22,10 @@ sqlx = { version = "0.7", features = [
     "chrono",
     "uuid",
 ] }
+tempfile = "3.2"
 tokio = { version = "1.0", features = ["full"] }
 tokio-util = { version = "0.7.0", features = ["io"] }
-tower-http = { version = "0.6", features = ["fs", "trace"] }
+tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }

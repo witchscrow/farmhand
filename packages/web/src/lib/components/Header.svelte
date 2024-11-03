@@ -1,9 +1,10 @@
 <script lang="ts">
+	import type { User } from '$lib/stores/user';
 	import Button from './Button.svelte';
 	import Logo from './Logo.svelte';
 	import MyAccount from './MyAccount.svelte';
 	import ThemeToggler from './ThemeToggler.svelte';
-	import { user } from '$lib/user';
+	let { user }: { user: User | null } = $props();
 </script>
 
 <header class="flex w-full items-center justify-center text-black dark:text-white">
@@ -14,8 +15,9 @@
 		</a>
 		<!-- You can put additional top menu items here -->
 		<aside class="flex items-center space-x-2">
-			{#if $user}
-				<MyAccount />
+			{#if user}
+				<Button variant="secondary" href="/upload">Upload</Button>
+				<MyAccount {user} />
 			{:else}
 				<Button href="/login">Log in</Button>
 				<Button href="/register">Register</Button>

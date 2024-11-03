@@ -10,7 +10,8 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && eslint ."
+		"lint": "prettier --check . && eslint .",
+		"sync": "svelte-kit sync"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^3.0.0",
@@ -37,6 +38,7 @@
 		"vite": "^5.0.3"
 	},
 	"dependencies": {
-		"@floating-ui/dom": "^1.6.12"
+		"@floating-ui/dom": "^1.6.12",
+		"filesize": "^10.1.6"
 	}
 }
