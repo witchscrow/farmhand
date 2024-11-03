@@ -4,15 +4,18 @@ mod middleware;
 mod routes;
 
 use axum::{
+    extract::DefaultBodyLimit,
     middleware as axum_mw,
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
 use config::Config;
+use routes::upload::UPLOAD_CHUNK_SIZE;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::{
+    cors::CorsLayer,
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
     LatencyUnit,
 };
@@ -52,6 +55,7 @@ async fn main() {
         .expect("Could not run database migrations");
     // Store shared data as state between routes
     let state = Arc::new(AppState { db, config });
+    routes::upload::init_cleanup().await;
     // Initialize our router with the shared state and required routes
     let app = Router::new()
         .route("/", get(index))
@@ -70,10 +74,18 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
-        .route("/upload", post(routes::upload::upload_video))
+        .route(
+            "/upload",
+            post(routes::upload::upload_video)
+                .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8)) // Increased for concurrent uploads
+                .layer(axum_mw::from_fn_with_state(
+                    state.clone(),
+                    middleware::auth::auth_middleware,
+                )),
+        )
         // TODO: Attach this to the upload route when you re-add it
-        // .layer(DefaultBodyLimit::max(5 * 1024 * 1024 * 1024)) // 5GB limit
         .with_state(state)
+        .layer(CorsLayer::permissive())
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new())

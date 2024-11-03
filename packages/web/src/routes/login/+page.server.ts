@@ -1,10 +1,9 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 import { env } from '$env/dynamic/private';
-import { getUser } from '$lib/server/users';
 
 export const actions = {
-	default: async ({ request, cookies, locals }) => {
+	default: async ({ request, cookies }) => {
 		const data = await request.formData();
 		const username = data.get('username');
 		const password = data.get('password');
