@@ -2,7 +2,7 @@ use axum::{
     extract::{Multipart, State},
     Extension,
 };
-use db::users::User;
+use db::{users::User, Video};
 use sha2::{Digest, Sha256};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::{collections::HashMap, path::Path, sync::Arc};
@@ -326,6 +326,24 @@ pub async fn upload_video(
                     Err(e) => {
                         tracing::error!("Failed to verify final file: {}", e);
                         return Err(format!("Failed to verify final file: {}", e));
+                    }
+                }
+
+                // Save video metadata to database
+                let video_title = filename
+                    .trim_end_matches(".mp4")
+                    .trim_end_matches(".mov")
+                    .trim_end_matches(".m4v")
+                    .to_string();
+
+                match Video::create(&state.db, user.id, video_title, final_path_str.clone()).await {
+                    Ok(video) => {
+                        tracing::debug!("Saved video metadata to database: {:?}", video);
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to save video metadata: {}", e);
+                        // Consider whether to return an error here or just log it
+                        return Err(format!("Failed to save video metadata: {}", e));
                     }
                 }
 
