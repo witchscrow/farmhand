@@ -5,7 +5,7 @@
   "license": "MIT",
   "private": true,
   "workspaces": [
-    "services/barn"
+    "services/barn-ui"
   ],
   "scripts": {
     "start": "yarn workspace web start",
