@@ -3,5 +3,5 @@ members = [
     "packages/db",
     "packages/vod",
     "services/forge-queue",
-    "services/silo",
+    "services/silo-api",
 ]
