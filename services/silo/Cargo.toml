@@ -7,7 +7,7 @@ edition = "2021"
 axum = { version = "0.7", features = ["multipart", "tracing", "ws"] }
 axum-extra = "0.3"
 chrono = { version = "0.4.31", features = ["serde"] }
-db = { path = "../db" }
+db = { path = "../../packages/db" }
 futures = "0.3"
 hex = "0.4"
 sha2 = "0.10"
