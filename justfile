@@ -37,6 +37,9 @@ build-web:
 build-api:
     cargo build -p api
 
+build-queue:
+    cargo build -p queue
+
 sync: sync-web
 sync-web:
     yarn sync
