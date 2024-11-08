@@ -6,6 +6,9 @@ start-api:
 start-web:
     yarn start
 
+start-queue:
+    cargo run -p queue
+
 dev-api: start-api
 
 dev-web:
