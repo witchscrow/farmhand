@@ -1,0 +1,86 @@
+name: build & push images
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  REGISTRY: registry.digitalocean.com/farmhand
+  API_IMAGE: silo-api
+  QUEUE_IMAGE: forge-queue
+  UI_IMAGE: barn-ui
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get release version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Log in to DO Container Registry
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build and push API image
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: config/api.Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.API_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.API_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE }}:buildcache,mode=max
+
+      # Build and push Queue image
+      - name: Build and push Queue image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: config/queue.Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache,mode=max
+
+      # Build and push UI image
+      - name: Build and push UI image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: config/ui.Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:latest
+            ${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:buildcache,mode=max
+
+      - name: Image digest
+        run: |
+          echo "API image digest: $(doctl registry repository digest-list ${{ env.API_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+          echo "Queue image digest: $(doctl registry repository digest-list ${{ env.QUEUE_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+          echo "UI image digest: $(doctl registry repository digest-list ${{ env.UI_IMAGE }} --format Tag,Digest --no-header | grep latest)"
