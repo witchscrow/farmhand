@@ -87,7 +87,15 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
-        // TODO: Attach this to the upload route when you re-add it
+        .nest(
+            "/video",
+            Router::new()
+                .route("/", get(routes::video::get_videos))
+                .layer(axum_mw::from_fn_with_state(
+                    state.clone(),
+                    middleware::auth::auth_middleware,
+                )),
+        )
         .with_state(state)
         .layer(CorsLayer::permissive())
         .layer(
