@@ -8,7 +8,7 @@ start-web:
     yarn start
 
 start-queue:
-    cargo run -p queue
+    cargo run -p forge
 
 # Development commands
 dev-api: start-api
