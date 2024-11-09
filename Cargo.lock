@@ -79,6 +79,7 @@ dependencies = [
  "jsonwebtoken",
  "lazy_static",
  "nanoid",
+ "queue",
  "serde",
  "serde_json",
  "sha2",
@@ -446,6 +447,7 @@ version = "0.1.0"
 dependencies = [
  "argon2",
  "chrono",
+ "nanoid",
  "serde",
  "sqlx",
  "tracing",
