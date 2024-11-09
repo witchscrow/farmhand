@@ -1,12 +1,7 @@
 use db::connect_to_database;
-use queue::{PostgresQueue, Queue};
+use queue::{runner, PostgresQueue, Queue};
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-mod error;
-mod job;
-mod queue;
-mod runner;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

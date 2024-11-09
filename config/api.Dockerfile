@@ -17,6 +17,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY packages/db ./packages/db
 COPY packages/vod ./packages/vod
 COPY services/forge-queue ./services/forge-queue
+COPY packages/queue ./packages/queue
 COPY services/silo-api ./services/silo-api
 
 # Build the project for release
