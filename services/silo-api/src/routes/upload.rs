@@ -51,16 +51,6 @@ pub async fn upload_video(
     let mut client_checksum = String::new();
     let mut total_size = 0u64;
 
-    // Create uploads directory if it doesn't exist
-    let upload_dir = std::env::current_dir()
-        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?
-        .join("uploads");
-    tokio::fs::create_dir_all(&upload_dir)
-        .await
-        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    tracing::debug!("Processing multipart upload");
-
     // Get chunk index
     if let Some(field) = multipart.next_field().await.map_err(|e| {
         tracing::error!("Error reading chunk index: {}", e);
@@ -140,8 +130,11 @@ pub async fn upload_video(
             return Err(StatusCode::BAD_REQUEST);
         }
 
-        let final_path = upload_dir.join(&filename);
-        let temp_path = upload_dir.join(format!("{}.temp", Uuid::new_v4()));
+        let final_path = state.config.upload_dir.join(&filename);
+        let temp_path = state
+            .config
+            .upload_dir
+            .join(format!("{}.temp", Uuid::new_v4()));
 
         // Read the field data
         let data = field.bytes().await.map_err(|_| StatusCode::BAD_REQUEST)?;
