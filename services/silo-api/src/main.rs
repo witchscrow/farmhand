@@ -81,7 +81,7 @@ async fn main() {
         .route(
             "/upload",
             post(routes::upload::upload_video)
-                .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8)) // Increased for concurrent uploads
+                .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,
