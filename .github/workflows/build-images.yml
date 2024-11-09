@@ -8,7 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Common setup job to get commit hash
   setup:
     runs-on: ubuntu-latest
     outputs:
@@ -21,7 +20,6 @@ jobs:
         id: version
         run: echo "VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-  # API image build job
   build-api:
     needs: setup
     runs-on: ubuntu-latest
@@ -53,11 +51,12 @@ jobs:
           tags: |
             ${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:latest
             ${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:${{ needs.setup.outputs.version }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
         run: echo "API image digest $(doctl registry repository digest-list ${{ vars.API_IMAGE }} --format Tag,Digest --no-header | grep latest)"
 
-  # Queue image build job
   build-queue:
     needs: setup
     runs-on: ubuntu-latest
@@ -89,11 +88,12 @@ jobs:
           tags: |
             ${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:latest
             ${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:${{ needs.setup.outputs.version }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
         run: echo "Queue image digest $(doctl registry repository digest-list ${{ vars.QUEUE_IMAGE }} --format Tag,Digest --no-header | grep latest)"
 
-  # UI image build job
   build-ui:
     needs: setup
     runs-on: ubuntu-latest
@@ -125,6 +125,8 @@ jobs:
           tags: |
             ${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:latest
             ${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:${{ needs.setup.outputs.version }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
         run: echo "UI image digest $(doctl registry repository digest-list ${{ vars.UI_IMAGE }} --format Tag,Digest --no-header | grep latest)"
