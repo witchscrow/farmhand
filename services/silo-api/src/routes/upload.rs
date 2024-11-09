@@ -1,5 +1,6 @@
 use axum::{
     extract::{Multipart, State},
+    http::StatusCode,
     Extension,
 };
 use db::{users::User, Video};
@@ -8,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::{collections::HashMap, path::Path, sync::Arc};
 use tokio::{
     fs::{File, OpenOptions},
-    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufWriter},
+    io::{AsyncSeekExt, AsyncWriteExt, BufWriter},
     sync::Mutex,
 };
 use uuid::Uuid;
@@ -37,9 +38,13 @@ lazy_static::lazy_static! {
 
 pub async fn upload_video(
     State(state): State<Arc<AppState>>,
-    Extension(user): Extension<User>,
+    Extension(user): Extension<Option<User>>,
     mut multipart: Multipart,
-) -> Result<String, String> {
+) -> Result<String, StatusCode> {
+    let user = match user {
+        Some(user) => user,
+        None => return Err(StatusCode::BAD_REQUEST),
+    };
     let mut filename = String::new();
     let mut chunk_index = 0u64;
     let mut total_bytes = 0u64;
@@ -48,63 +53,82 @@ pub async fn upload_video(
 
     // Create uploads directory if it doesn't exist
     let upload_dir = std::env::current_dir()
-        .map_err(|e| e.to_string())?
+        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?
         .join("uploads");
     tokio::fs::create_dir_all(&upload_dir)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     tracing::debug!("Processing multipart upload");
 
     // Get chunk index
     if let Some(field) = multipart.next_field().await.map_err(|e| {
         tracing::error!("Error reading chunk index: {}", e);
-        e.to_string()
+        StatusCode::BAD_REQUEST
     })? {
         if field.name() != Some("chunkIndex") {
-            return Err(format!("Expected chunkIndex, got {:?}", field.name()));
+            tracing::error!("Expected chunkIndex, got {:?}", field.name());
+            return Err(StatusCode::BAD_REQUEST);
         }
         chunk_index = field
             .text()
             .await
-            .map_err(|e| e.to_string())?
+            .map_err(|e| StatusCode::BAD_REQUEST)?
             .parse::<u64>()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     // Get total file size
-    if let Some(field) = multipart.next_field().await.map_err(|e| e.to_string())? {
+    if let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| StatusCode::BAD_REQUEST)?
+    {
         if field.name() != Some("totalSize") {
-            return Err("Missing total size".to_string());
+            tracing::error!("Missing total size");
+            return Err(StatusCode::BAD_REQUEST);
         }
         total_size = field
             .text()
             .await
-            .map_err(|e| e.to_string())?
+            .map_err(|e| StatusCode::BAD_REQUEST)?
             .parse::<u64>()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| StatusCode::INTERNAL_SERVER_ERROR)?;
     }
 
     // Get checksum
-    if let Some(field) = multipart.next_field().await.map_err(|e| e.to_string())? {
+    if let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| StatusCode::BAD_REQUEST)?
+    {
         if field.name() != Some("checksum") {
-            return Err("Missing checksum".to_string());
+            tracing::error!("Missing checksum");
+            return Err(StatusCode::BAD_REQUEST);
         }
-        client_checksum = field.text().await.map_err(|e| e.to_string())?;
+        client_checksum = field.text().await.map_err(|e| StatusCode::BAD_REQUEST)?;
     }
 
     // Get file chunk
-    if let Some(field) = multipart.next_field().await.map_err(|e| e.to_string())? {
+    if let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| StatusCode::BAD_REQUEST)?
+    {
         // Content type validation
         if !field
             .content_type()
             .map(|ct| ct.starts_with("video/"))
             .unwrap_or(false)
         {
-            return Err("Invalid content type".to_string());
+            tracing::error!("Invalid content type in upload");
+            return Err(StatusCode::BAD_REQUEST);
         }
 
-        filename = field.file_name().ok_or("No filename provided")?.to_string();
+        filename = field
+            .file_name()
+            .ok_or(StatusCode::BAD_REQUEST)?
+            .to_string();
         let is_mp4 = filename.to_lowercase().ends_with(".mp4");
 
         tracing::debug!("Processing file: {} (chunk {})", filename, chunk_index);
@@ -112,14 +136,15 @@ pub async fn upload_video(
         // Validate file type
         if !filename.ends_with(".mp4") && !filename.ends_with(".mov") && !filename.ends_with(".m4v")
         {
-            return Err("Invalid file type".to_string());
+            tracing::error!("Invalid file type in upload");
+            return Err(StatusCode::BAD_REQUEST);
         }
 
         let final_path = upload_dir.join(&filename);
         let temp_path = upload_dir.join(format!("{}.temp", Uuid::new_v4()));
 
         // Read the field data
-        let data = field.bytes().await.map_err(|e| e.to_string())?;
+        let data = field.bytes().await.map_err(|_| StatusCode::BAD_REQUEST)?;
 
         // Verify checksum
         let mut hasher = Sha256::new();
@@ -127,13 +152,15 @@ pub async fn upload_video(
         let server_checksum = hex::encode(hasher.finalize());
 
         if server_checksum != client_checksum {
-            return Err(format!("Checksum mismatch for chunk {}", chunk_index));
+            tracing::error!("Checksum mismatch for chunk {}", chunk_index);
+            return Err(StatusCode::BAD_REQUEST);
         }
 
         total_bytes = data.len() as u64;
 
         if total_size > MAX_FILE_SIZE {
-            return Err("File too large".to_string());
+            tracing::error!("File too large: {}", total_size);
+            return Err(StatusCode::BAD_REQUEST);
         }
 
         {
@@ -146,14 +173,15 @@ pub async fn upload_video(
                     .truncate(true)
                     .open(&temp_path)
                     .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                // Pre-allocate space for all files
-                file.set_len(total_size).await.map_err(|e| e.to_string())?;
+                file.set_len(total_size)
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 file.seek(std::io::SeekFrom::Start(0))
                     .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 let buffer_size = if is_mp4 { MP4_BUFFER_SIZE } else { BUFFER_SIZE };
 
@@ -176,7 +204,7 @@ pub async fn upload_video(
             } else {
                 upload_states
                     .get_mut(&filename)
-                    .ok_or("Upload not initialized")?
+                    .ok_or(StatusCode::BAD_REQUEST)?
             };
 
             // Write chunk
@@ -185,21 +213,21 @@ pub async fn upload_video(
                 .file
                 .seek(std::io::SeekFrom::Start(write_position))
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
             upload_state
                 .file
                 .write_all(&data)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-            // Only flush every few chunks for MP4 files
             if upload_state.is_mp4 {
                 if chunk_index % 3 == 0 {
-                    upload_state.file.flush().await.map_err(|e| {
-                        tracing::error!("Error flushing chunk: {}", e);
-                        e.to_string()
-                    })?;
+                    upload_state
+                        .file
+                        .flush()
+                        .await
+                        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
                 }
             }
 
@@ -212,18 +240,18 @@ pub async fn upload_video(
                 upload_state.chunks_received.load(Ordering::SeqCst) >= upload_state.total_chunks;
 
             if is_complete {
-                tracing::debug!("Video upload complete, finalizing processing");
-                // Ensure all data is written and flushed
-                upload_state.file.flush().await.map_err(|e| {
-                    tracing::error!("Error flushing file: {}", e);
-                    e.to_string()
-                })?;
+                upload_state
+                    .file
+                    .flush()
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-                // Get the inner file to sync
-                upload_state.file.get_ref().sync_all().await.map_err(|e| {
-                    tracing::error!("Error syncing file: {}", e);
-                    e.to_string()
-                })?;
+                upload_state
+                    .file
+                    .get_ref()
+                    .sync_all()
+                    .await
+                    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
                 // Clone paths before any other operations
                 let temp_path_str = upload_state.temp_path.clone();
@@ -243,25 +271,23 @@ pub async fn upload_video(
                 }
 
                 // Verify the temp file size before renaming
-                let temp_size = match tokio::fs::metadata(&temp_path_str).await {
-                    Ok(metadata) => metadata.len(),
-                    Err(e) => {
-                        tracing::error!("Failed to get temp file metadata: {}", e);
-                        return Err(format!("Failed to verify temp file: {}", e));
+                match tokio::fs::metadata(&temp_path_str).await {
+                    Ok(metadata) => {
+                        let temp_size = metadata.len();
+                        if temp_size != total_size {
+                            tracing::error!(
+                                "Size mismatch: expected {}, got {} for file {}",
+                                total_size,
+                                temp_size,
+                                &temp_path_str
+                            );
+                            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                        }
                     }
-                };
-
-                if temp_size != total_size {
-                    tracing::error!(
-                        "Size mismatch: expected {}, got {} for file {}",
-                        total_size,
-                        temp_size,
-                        &temp_path_str
-                    );
-                    return Err(format!(
-                        "File size mismatch: expected {}, got {}",
-                        total_size, temp_size
-                    ));
+                    Err(_) => {
+                        tracing::error!("Failed to get temp file metadata");
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                    }
                 }
 
                 // Ensure the final path doesn't exist before renaming
@@ -275,7 +301,7 @@ pub async fn upload_video(
                         }
                         Err(e) => {
                             tracing::error!("Failed to remove existing file: {}", e);
-                            return Err(format!("Failed to remove existing file: {}", e));
+                            return Err(StatusCode::INTERNAL_SERVER_ERROR);
                         }
                     }
                 }
@@ -298,12 +324,12 @@ pub async fn upload_video(
                                 &final_path_str,
                                 e
                             );
-                            return Err(format!("Failed to rename file: {}", e));
+                            return Err(StatusCode::INTERNAL_SERVER_ERROR);
                         }
                     }
                     Err(e) => {
                         tracing::error!("Failed to execute rename operation: {}", e);
-                        return Err(format!("Failed to execute rename operation: {}", e));
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 }
 
@@ -318,15 +344,12 @@ pub async fn upload_video(
                                 final_size,
                                 &final_path_str
                             );
-                            return Err(format!(
-                                "Final file size mismatch: expected {}, got {}",
-                                total_size, final_size
-                            ));
+                            return Err(StatusCode::INTERNAL_SERVER_ERROR);
                         }
                     }
                     Err(e) => {
                         tracing::error!("Failed to verify final file: {}", e);
-                        return Err(format!("Failed to verify final file: {}", e));
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 }
 
@@ -356,14 +379,14 @@ pub async fn upload_video(
                             .await
                         {
                             tracing::error!("Failed to queue video processing job: {}", e);
-                            return Err(format!("Failed to queue video processing: {}", e));
+                            return Err(StatusCode::INTERNAL_SERVER_ERROR);
                         }
 
                         tracing::debug!("Successfully queued video processing job");
                     }
                     Err(e) => {
                         tracing::error!("Failed to save video metadata: {}", e);
-                        return Err(format!("Failed to save video metadata: {}", e));
+                        return Err(StatusCode::INTERNAL_SERVER_ERROR);
                     }
                 }
             }
@@ -376,7 +399,7 @@ pub async fn upload_video(
             total_bytes as f64 / 1_048_576.0
         ))
     } else {
-        Err("No file data received".to_string())
+        Err(StatusCode::BAD_REQUEST)
     }
 }
 

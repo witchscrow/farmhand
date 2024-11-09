@@ -1,4 +1,4 @@
-use axum::{response::IntoResponse, Extension, Json};
+use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
 use db::users::User;
 use serde::Serialize;
 
@@ -10,9 +10,12 @@ struct UserResponse {
 }
 
 /// Gets a user by their ID
-pub async fn get_user(Extension(user): Extension<User>) -> impl IntoResponse {
-    Json(UserResponse {
-        username: user.username,
-        email: user.email,
-    })
+pub async fn get_user(Extension(user): Extension<Option<User>>) -> impl IntoResponse {
+    match user {
+        Some(user) => Ok(Json(UserResponse {
+            username: user.username,
+            email: user.email,
+        })),
+        None => Err(StatusCode::BAD_REQUEST),
+    }
 }

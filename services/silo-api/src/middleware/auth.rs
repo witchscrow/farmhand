@@ -21,10 +21,8 @@ pub async fn auth_middleware(
     // Pull the full header string out of the header
     let auth_header = match raw_auth_header {
         Some(header) => header.to_str().map_err(|_| StatusCode::BAD_REQUEST),
-        None => {
-            tracing::error!("Could not get authorization from header");
-            return Err(StatusCode::BAD_REQUEST);
-        }
+        // This middleware allows for optional users, so we just return early if no auth headers are found
+        None => return Ok(next.run(req).await),
     }?;
     // Full header is expected to be `Bearer token`, split by whitespace
     let mut split_header = auth_header.split_whitespace();
