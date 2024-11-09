@@ -7,12 +7,6 @@ on:
       - released
   workflow_dispatch:
 
-env:
-  REGISTRY: registry.digitalocean.com/farmhand
-  API_IMAGE: silo-api
-  QUEUE_IMAGE: forge-queue
-  UI_IMAGE: barn-ui
-
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
