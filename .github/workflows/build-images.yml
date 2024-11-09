@@ -2,7 +2,9 @@ name: build & push images
 
 on:
   release:
-    types: [published]
+    types:
+      - prereleased
+      - released
   workflow_dispatch:
 
 env:
