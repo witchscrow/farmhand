@@ -1,289 +1,169 @@
-use anyhow::Result;
-use ffmpeg_next as ffmpeg;
-use std::io::Write;
+use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
-/// Defines the characteristics for each video quality level
+pub struct HLSConverter {
+    ffmpeg_path: PathBuf,
+    output_dir: PathBuf,
+}
+
 #[derive(Debug, Clone)]
-pub struct VideoQuality {
-    pub name: String, // Quality name (e.g., "1080p")
-    pub height: u32,  // Target height in pixels
-    pub bitrate: u64, // Target bitrate in bits per second
+pub struct Quality {
+    pub width: u32,
+    pub height: u32,
+    pub bitrate: String,
+    pub name: String,
 }
 
-/// The different formats of video file we support
-#[derive(Debug)]
-pub enum RawVideoType {
-    MP4,
-}
-
-/// A representation of a raw video, including type and location
-#[derive(Debug)]
-pub struct RawVideo {
-    video_type: RawVideoType,
-    path: PathBuf,
-}
-
-/// Settings for HLS stream conversion
-#[derive(Debug)]
-pub struct StreamSettings {
-    pub qualities: Vec<VideoQuality>,
-    pub segment_duration: u32, // Duration of each segment in seconds
-    pub keep_all_segments: bool,
-}
-
-impl Default for StreamSettings {
-    fn default() -> Self {
+impl Quality {
+    pub fn new(
+        width: u32,
+        height: u32,
+        bitrate: impl Into<String>,
+        name: impl Into<String>,
+    ) -> Self {
         Self {
-            qualities: vec![
-                VideoQuality {
-                    name: "1080p".to_string(),
-                    height: 1080,
-                    bitrate: 5_000_000, // 5 Mbps
-                },
-                VideoQuality {
-                    name: "720p".to_string(),
-                    height: 720,
-                    bitrate: 2_500_000, // 2.5 Mbps
-                },
-                VideoQuality {
-                    name: "480p".to_string(),
-                    height: 480,
-                    bitrate: 1_000_000, // 1 Mbps
-                },
-            ],
-            segment_duration: 10,
-            keep_all_segments: true,
+            width,
+            height,
+            bitrate: bitrate.into(),
+            name: name.into(),
         }
     }
 }
 
-/// A vod (video on demand) represents a raw video, stream, and relative associations
-#[derive(Debug)]
-pub struct Vod {
-    raw_video: RawVideo,
-    stream_settings: StreamSettings,
-}
+impl HLSConverter {
+    pub fn new<P: AsRef<Path>>(ffmpeg_path: P, output_dir: P) -> Result<Self> {
+        let ffmpeg = ffmpeg_path.as_ref().to_path_buf();
+        let out_dir = output_dir.as_ref().to_path_buf();
 
-impl Vod {
-    /// Creates a new VOD instance with default stream settings
-    pub fn new(video_path: PathBuf) -> Self {
-        Self {
-            raw_video: RawVideo {
-                video_type: RawVideoType::MP4,
-                path: video_path,
-            },
-            stream_settings: StreamSettings::default(),
+        if !ffmpeg.exists() {
+            anyhow::bail!("FFmpeg not found at {:?}", ffmpeg);
         }
+
+        std::fs::create_dir_all(&out_dir).context("Failed to create output directory")?;
+
+        Ok(Self {
+            ffmpeg_path: ffmpeg,
+            output_dir: out_dir,
+        })
     }
 
-    /// Creates a new VOD instance with custom stream settings
-    pub fn new_with_settings(video_path: PathBuf, settings: StreamSettings) -> Self {
-        Self {
-            raw_video: RawVideo {
-                video_type: RawVideoType::MP4,
-                path: video_path,
-            },
-            stream_settings: settings,
+    pub fn convert_to_hls<P: AsRef<Path>>(
+        &self,
+        input_path: P,
+        qualities: Vec<Quality>,
+    ) -> Result<()> {
+        let input_path = input_path.as_ref();
+        if !input_path.exists() {
+            anyhow::bail!("Input file not found: {:?}", input_path);
         }
-    }
 
-    /// Returns the current stream settings
-    pub fn stream_settings(&self) -> &StreamSettings {
-        &self.stream_settings
-    }
+        // Create variant playlist
+        let mut master_playlist = String::from("#EXTM3U\n#EXT-X-VERSION:3\n");
 
-    /// Updates the stream settings
-    pub fn set_stream_settings(&mut self, settings: StreamSettings) {
-        self.stream_settings = settings;
-    }
+        // Process each quality
+        for quality in qualities.iter() {
+            let output_name = format!("stream_{}", quality.name);
+            let playlist_name = format!("{}.m3u8", output_name);
+            let segment_pattern = format!("{}_segment_%03d.ts", output_name);
 
-    /// Converts a raw video into multiple HLS streams of different qualities
-    /// Returns the path to the master playlist file
-    pub fn convert_video_to_stream(&self, output_dir: &Path) -> Result<PathBuf> {
-        // Initialize FFmpeg
-        ffmpeg::init()?;
-
-        // Create output directory if it doesn't exist
-        std::fs::create_dir_all(output_dir)?;
-
-        // Open input context
-        let input_ctx = ffmpeg::format::input(&self.raw_video.path)?;
-
-        // Find the best video and audio streams from input
-        let input_video_stream = input_ctx
-            .streams()
-            .best(ffmpeg::media::Type::Video)
-            .ok_or_else(|| anyhow::anyhow!("No video stream found"))?;
-
-        let input_audio_stream = input_ctx
-            .streams()
-            .best(ffmpeg::media::Type::Audio)
-            .ok_or_else(|| anyhow::anyhow!("No audio stream found"))?;
-
-        // Create master playlist
-        let master_playlist_path = output_dir.join("master.m3u8");
-        let mut master_playlist = std::fs::File::create(&master_playlist_path)?;
-        writeln!(master_playlist, "#EXTM3U")?;
-        writeln!(master_playlist, "#EXT-X-VERSION:3")?;
-
-        // Store output contexts for each quality
-        let mut output_contexts = Vec::new();
-
-        // Create output streams for each quality level
-        for quality in &self.stream_settings.qualities {
-            // Create directory for this quality level
-            let quality_dir = output_dir.join(&quality.name);
-            std::fs::create_dir_all(&quality_dir)?;
-
-            // Setup output context for this quality
-            let playlist_path = quality_dir.join("stream.m3u8");
-            let mut output_ctx = ffmpeg::format::output(&playlist_path)?;
-
-            // Configure HLS output format
-            output_ctx.set_format("hls");
-            let mut dict = ffmpeg::Dictionary::new();
-            dict.set(
-                "hls_time",
-                &self.stream_settings.segment_duration.to_string(),
-            );
-            dict.set(
-                "hls_list_size",
-                if self.stream_settings.keep_all_segments {
-                    "0"
-                } else {
-                    "5"
-                },
-            );
-            dict.set("hls_flags", "independent_segments");
-            dict.set(
-                "hls_segment_filename",
-                quality_dir.join("segment_%03d.ts").to_str().unwrap(),
-            );
-            output_ctx.set_options(dict);
-
-            // Setup video encoder for this quality
-            let encoder_video = ffmpeg::encoder::find(ffmpeg::codec::Id::H264)
-                .ok_or_else(|| anyhow::anyhow!("H264 encoder not found"))?;
-            let mut video_stream = output_ctx.add_stream(encoder_video)?;
-            let mut video_encoder = video_stream.codec().encoder().video()?;
-
-            // Calculate width maintaining aspect ratio
-            let input_width = input_video_stream.codec().width();
-            let input_height = input_video_stream.codec().height();
-            let width = (input_width as f32 * (quality.height as f32 / input_height as f32)) as u32;
-            let width = width - (width % 2); // Ensure even width for H.264
-
-            // Configure video encoder parameters
-            video_encoder.set_width(width);
-            video_encoder.set_height(quality.height);
-            video_encoder.set_format(ffmpeg::format::Pixel::YUV420P);
-            video_encoder.set_bit_rate(quality.bitrate);
-            video_encoder.set_max_b_frames(2);
-            video_encoder.set_time_base((1, 30)); // 30 fps
-
-            // Additional H.264 specific settings
-            let mut codec_opts = ffmpeg::Dictionary::new();
-            codec_opts.set("preset", "medium");
-            codec_opts.set("profile", "high");
-            codec_opts.set("level", "4.1");
-            video_encoder.set_options(codec_opts);
-
-            video_encoder.open_as(encoder_video)?;
-
-            // Add this quality variant to master playlist
-            writeln!(
-                master_playlist,
-                "#EXT-X-STREAM-INF:BANDWIDTH={},RESOLUTION={}x{}",
-                quality.bitrate, width, quality.height
-            )?;
-            writeln!(master_playlist, "{}/stream.m3u8", quality.name)?;
-
-            // Setup audio encoder (same settings for all qualities)
-            let encoder_audio = ffmpeg::encoder::find(ffmpeg::codec::Id::AAC)
-                .ok_or_else(|| anyhow::anyhow!("AAC encoder not found"))?;
-            let mut audio_stream = output_ctx.add_stream(encoder_audio)?;
-            let mut audio_encoder = audio_stream.codec().encoder().audio()?;
-
-            // Configure audio encoder parameters
-            audio_encoder.set_rate(44100);
-            audio_encoder.set_channels(2);
-            audio_encoder.set_channel_layout(ffmpeg::channel_layout::ChannelLayout::STEREO);
-            audio_encoder.set_format(ffmpeg::format::Sample::F32(
-                ffmpeg::format::sample::Type::Packed,
+            // Add to variant playlist
+            master_playlist.push_str(&format!(
+                "#EXT-X-STREAM-INF:BANDWIDTH={},RESOLUTION={}x{},NAME=\"{}\"\n{}\n",
+                quality.bitrate.replace("k", "000"),
+                quality.width,
+                quality.height,
+                quality.name,
+                playlist_name
             ));
-            audio_encoder.set_bit_rate(128_000); // 128 kbps audio
 
-            audio_encoder.open_as(encoder_audio)?;
-
-            // Write the header for this quality's stream
-            output_ctx.write_header()?;
-
-            output_contexts.push((output_ctx, video_encoder, audio_encoder));
+            // Convert for this quality
+            self.convert_quality(
+                input_path,
+                &output_name,
+                quality,
+                &playlist_name,
+                &segment_pattern,
+            )
+            .with_context(|| format!("Failed to convert quality: {}", quality.name))?;
         }
 
-        // Setup decoders for input streams
-        let mut video_decoder = input_video_stream.codec().decoder().video()?;
-        let mut audio_decoder = input_audio_stream.codec().decoder().audio()?;
+        // Write master playlist
+        std::fs::write(self.output_dir.join("master.m3u8"), master_playlist)
+            .context("Failed to write master playlist")?;
 
-        // Process all input packets
-        for (stream, packet) in input_ctx.packets() {
-            match stream.index() {
-                // Handle video packets
-                i if i == input_video_stream.index() => {
-                    let mut decoded = ffmpeg::frame::Video::empty();
-                    if video_decoder.decode(&packet, &mut decoded)? {
-                        // Process each quality level
-                        for ((output_ctx, video_encoder, _), quality) in output_contexts
-                            .iter_mut()
-                            .zip(self.stream_settings.qualities.iter())
-                        {
-                            let mut encoded = ffmpeg::Packet::empty();
-                            if video_encoder.encode(&decoded, &mut encoded)? {
-                                encoded.set_stream(0);
-                                output_ctx.write_frame(&encoded)?;
-                            }
-                        }
-                    }
-                }
-                // Handle audio packets
-                i if i == input_audio_stream.index() => {
-                    let mut decoded = ffmpeg::frame::Audio::empty();
-                    if audio_decoder.decode(&packet, &mut decoded)? {
-                        // Process audio for each quality (same audio for all qualities)
-                        for (output_ctx, _, audio_encoder) in output_contexts.iter_mut() {
-                            let mut encoded = ffmpeg::Packet::empty();
-                            if audio_encoder.encode(&decoded, &mut encoded)? {
-                                encoded.set_stream(1);
-                                output_ctx.write_frame(&encoded)?;
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
+        Ok(())
+    }
+
+    fn convert_quality(
+        &self,
+        input_path: &Path,
+        output_name: &str,
+        quality: &Quality,
+        playlist_name: &str,
+        segment_pattern: &str,
+    ) -> Result<()> {
+        let output = Command::new(&self.ffmpeg_path)
+            .arg("-i")
+            .arg(input_path)
+            .arg("-c:v")
+            .arg("libx264")
+            .arg("-c:a")
+            .arg("aac")
+            .arg("-b:v")
+            .arg(&quality.bitrate)
+            .arg("-maxrate")
+            .arg(&quality.bitrate)
+            .arg("-bufsize")
+            .arg(format!(
+                "{}k",
+                quality.bitrate.replace("k", "").parse::<u32>()? * 2
+            ))
+            .arg("-preset")
+            .arg("faster")
+            .arg("-g")
+            .arg("60")
+            .arg("-sc_threshold")
+            .arg("0")
+            .arg("-s")
+            .arg(format!("{}x{}", quality.width, quality.height))
+            .arg("-f")
+            .arg("hls")
+            .arg("-hls_time")
+            .arg("6")
+            .arg("-hls_list_size")
+            .arg("0")
+            .arg("-hls_segment_type")
+            .arg("mpegts")
+            .arg("-hls_segment_filename")
+            .arg(self.output_dir.join(segment_pattern))
+            .arg(self.output_dir.join(playlist_name))
+            .output()
+            .context("Failed to execute FFmpeg command")?;
+
+        if !output.status.success() {
+            let error = String::from_utf8_lossy(&output.stderr);
+            anyhow::bail!("FFmpeg failed: {}", error);
         }
 
-        // Flush encoders and write trailers
-        for (output_ctx, video_encoder, audio_encoder) in output_contexts {
-            let mut encoded = ffmpeg::Packet::empty();
+        Ok(())
+    }
 
-            // Flush video encoder
-            while video_encoder.flush(&mut encoded)? {
-                encoded.set_stream(0);
-                output_ctx.write_frame(&encoded)?;
-            }
+    pub fn verify_ffmpeg(&self) -> Result<String> {
+        let output = Command::new(&self.ffmpeg_path)
+            .arg("-version")
+            .output()
+            .context("Failed to execute FFmpeg version command")?;
 
-            // Flush audio encoder
-            while audio_encoder.flush(&mut encoded)? {
-                encoded.set_stream(1);
-                output_ctx.write_frame(&encoded)?;
-            }
-
-            output_ctx.write_trailer()?;
+        if !output.status.success() {
+            anyhow::bail!("FFmpeg version check failed");
         }
 
-        Ok(master_playlist_path)
+        Ok(String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .next()
+            .unwrap_or("Unknown version")
+            .to_string())
     }
 }
 
@@ -292,30 +172,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_custom_qualities() {
-        // Create custom settings
-        let settings = StreamSettings {
-            qualities: vec![
-                VideoQuality {
-                    name: "4K".to_string(),
-                    height: 2160,
-                    bitrate: 20_000_000,
-                },
-                VideoQuality {
-                    name: "1080p".to_string(),
-                    height: 1080,
-                    bitrate: 5_000_000,
-                },
-            ],
-            segment_duration: 6,
-            keep_all_segments: false,
-        };
+    fn test_hls_conversion() -> Result<()> {
+        let converter = HLSConverter::new("/usr/bin/ffmpeg", "output")?;
 
-        // Create VOD with custom settings
-        let vod = Vod::new_with_settings(PathBuf::from("input.mp4"), settings);
+        println!("FFmpeg version: {}", converter.verify_ffmpeg()?);
 
-        assert_eq!(vod.stream_settings().qualities.len(), 2);
-        assert_eq!(vod.stream_settings().segment_duration, 6);
-        assert_eq!(vod.stream_settings().keep_all_segments, false);
+        let qualities = vec![
+            Quality::new(1920, 1080, "5000k", "1080p"),
+            Quality::new(1280, 720, "2800k", "720p"),
+            Quality::new(854, 480, "1400k", "480p"),
+            Quality::new(640, 360, "800k", "360p"),
+        ];
+
+        converter.convert_to_hls("input.mp4", qualities)?;
+        Ok(())
     }
 }

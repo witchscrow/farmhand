@@ -1,10 +1,10 @@
 use crate::error::Error;
-use crate::{Job, Message, Queue};
+use crate::queue::{Job, Message, Queue};
 use db::Video;
 use futures::{stream, StreamExt};
 use sqlx::{Pool, Postgres};
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use vod::Vod;
+use vod::{HLSConverter, Quality};
 
 /// Runs a loop that pulls jobs from the queue and runs <concurrency> jobs each loop
 pub async fn run_worker(queue: Arc<dyn Queue>, concurrency: usize, db_conn: &Pool<Postgres>) {
@@ -13,19 +13,17 @@ pub async fn run_worker(queue: Arc<dyn Queue>, concurrency: usize, db_conn: &Poo
         let jobs = match queue.pull(concurrency as i32).await {
             Ok(jobs) => jobs,
             Err(err) => {
-                // Trace the error
                 tracing::error!("runner: error pulling jobs {}", err);
-                // Go to sleep and try again
                 tokio::time::sleep(Duration::from_millis(500)).await;
                 Vec::new()
             }
         };
-        // Just for debugging the amount of jobs a queue has pulled in
+
         let number_of_jobs = jobs.len();
         if number_of_jobs > 0 {
             tracing::debug!("Fetched {} jobs", number_of_jobs);
         }
-        // Run each jobs concurrently
+
         stream::iter(jobs)
             .for_each_concurrent(concurrency, |job| async {
                 tracing::debug!("Starting job {}", job.id);
@@ -34,20 +32,17 @@ pub async fn run_worker(queue: Arc<dyn Queue>, concurrency: usize, db_conn: &Poo
                 let res = match handle_job(job, db_conn).await {
                     Ok(_) => queue.delete_job(job_id).await,
                     Err(err) => {
-                        println!("run_worker: handling job({}): {}", job_id, &err);
+                        tracing::error!("run_worker: handling job({}): {}", job_id, &err);
                         queue.fail_job(job_id).await
                     }
                 };
 
-                match res {
-                    Ok(_) => {}
-                    Err(err) => {
-                        println!("run_worker: deleting / failing job: {}", &err);
-                    }
+                if let Err(err) = res {
+                    tracing::error!("run_worker: deleting / failing job: {}", &err);
                 }
             })
             .await;
-        // Take a break for a bit, we don't need to run every moment (our jobs are unlikely to complete that quickly)
+
         tokio::time::sleep(Duration::from_millis(125)).await;
     }
 }
@@ -56,32 +51,45 @@ pub async fn run_worker(queue: Arc<dyn Queue>, concurrency: usize, db_conn: &Poo
 async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
     match job.message {
         Message::ProcessRawVideoIntoStream { video_id } => {
-            // First, update video status to Processing
+            // Update video status to Processing
             sqlx::query(
                 "UPDATE videos SET processing_status = 'processing', updated_at = NOW() WHERE id = $1"
             )
-            .bind(video_id)
+            .bind(&video_id)
             .execute(db)
             .await?;
 
-            // Get video details from database
+            // Get video details
             let video = sqlx::query_as::<_, Video>("SELECT * FROM videos WHERE id = $1")
-                .bind(video_id)
+                .bind(&video_id)
                 .fetch_one(db)
                 .await?;
 
-            // Create output directory path
-            let output_dir = PathBuf::from("processed_videos").join(video_id.to_string());
+            // Create output directory
+            let output_dir = PathBuf::from("processed_videos").join(&video_id.to_string());
 
-            // Create VOD instance
-            let vod = Vod::new(PathBuf::from(&video.raw_video_path));
+            // Initialize HLS converter
+            let converter = HLSConverter::new(
+                "/usr/bin/ffmpeg",
+                &output_dir
+                    .to_str()
+                    .expect("Could not convert output dir to path string"),
+            )
+            .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
+
+            // Define quality levels
+            let qualities = vec![
+                Quality::new(1920, 1080, "5000k", "1080p"),
+                Quality::new(1280, 720, "2800k", "720p"),
+                Quality::new(854, 480, "1400k", "480p"),
+                Quality::new(640, 360, "800k", "360p"),
+            ];
 
             // Process the video
-            let result = vod.convert_video_to_stream(&output_dir);
-
-            match result {
-                Ok(master_playlist_path) => {
-                    // Update video with success status and processed path
+            match converter.convert_to_hls(&video.raw_video_path, qualities) {
+                Ok(_) => {
+                    // Update with success status
+                    let master_playlist_path = output_dir.join("master.m3u8");
                     sqlx::query(
                         "UPDATE videos SET
                             processing_status = 'completed',
@@ -90,25 +98,25 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
                         WHERE id = $2",
                     )
                     .bind(master_playlist_path.to_str().unwrap())
-                    .bind(video_id)
+                    .bind(&video_id)
                     .execute(db)
                     .await?;
 
-                    tracing::info!("Successfully processed video {}", video_id);
+                    tracing::info!("Successfully processed video {}", &video_id);
                 }
                 Err(e) => {
-                    // Update video with failed status
+                    // Update with failed status
                     sqlx::query(
                         "UPDATE videos SET
                             processing_status = 'failed',
                             updated_at = NOW()
                         WHERE id = $1",
                     )
-                    .bind(video_id)
+                    .bind(&video_id)
                     .execute(db)
                     .await?;
 
-                    tracing::error!("Failed to process video {}: {}", video_id, e);
+                    tracing::error!("Failed to process video {}: {}", &video_id, e);
                     return Err(Error::VideoProcessingError(e.to_string()));
                 }
             }
