@@ -130,11 +130,10 @@ pub async fn upload_video(
             return Err(StatusCode::BAD_REQUEST);
         }
 
-        let final_path = state.config.upload_dir.join(&filename);
-        let temp_path = state
-            .config
-            .upload_dir
-            .join(format!("{}.temp", Uuid::new_v4()));
+        // Create paths for temporary and final file locations
+        let upload_dir = Path::new(&state.config.upload_dir);
+        let final_path = upload_dir.join(&filename);
+        let temp_path = upload_dir.join(format!("{}.temp", Uuid::new_v4()));
 
         // Read the field data
         let data = field.bytes().await.map_err(|_| StatusCode::BAD_REQUEST)?;
