@@ -42,10 +42,10 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:latest
-            ${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:buildcache,mode=max
+            ${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:latest
+            ${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache,mode=max
 
       # Build and push Queue image
       - name: Build and push Queue image
@@ -56,10 +56,10 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:latest
-            ${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache,mode=max
+            ${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:latest
+            ${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache,mode=max
 
       # Build and push UI image
       - name: Build and push UI image
@@ -70,13 +70,13 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:latest
-            ${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:buildcache,mode=max
+            ${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:latest
+            ${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
         run: |
-          echo "API image digest: $(doctl registry repository digest-list ${{ env.API_IMAGE }} --format Tag,Digest --no-header | grep latest)"
-          echo "Queue image digest: $(doctl registry repository digest-list ${{ env.QUEUE_IMAGE }} --format Tag,Digest --no-header | grep latest)"
-          echo "UI image digest: $(doctl registry repository digest-list ${{ env.UI_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+          echo "API image digest: $(doctl registry repository digest-list ${{ vars.API_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+          echo "Queue image digest: $(doctl registry repository digest-list ${{ vars.QUEUE_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+          echo "UI image digest: $(doctl registry repository digest-list ${{ vars.UI_IMAGE }} --format Tag,Digest --no-header | grep latest)"
