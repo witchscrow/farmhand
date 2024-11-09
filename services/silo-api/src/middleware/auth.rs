@@ -29,13 +29,10 @@ pub async fn auth_middleware(
     // It _should_ only be two values, we care about the token value
     let (_bearer, token) = (split_header.next(), split_header.next());
     let jwt_token = token.expect("Could not parse token").to_owned();
-    let token_claims = match decode_jwt(jwt_token) {
-        Ok(token) => token,
-        Err(jwt_err) => {
-            tracing::error!("Error decoding jwt {jwt_err:?}");
-            return Err(StatusCode::UNAUTHORIZED);
-        }
-    };
+    let token_claims = decode_jwt(jwt_token).map_err(|jwt_err| {
+        tracing::error!("Error decoding jwt {jwt_err:?}");
+        StatusCode::UNAUTHORIZED
+    })?;
     // Convert the user id from a string to a uuid
     let user_id = Uuid::parse_str(&token_claims.claims.user_id).map_err(|e| {
         tracing::error!("Could not parse user id from token to uuid {e}");
