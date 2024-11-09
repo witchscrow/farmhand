@@ -29,7 +29,7 @@ jobs:
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
         with:
-          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          token: ${{ secrets.DO_REGISTRY_KEY }}
 
       - name: Log in to DO Container Registry
         run: doctl registry login --expiry-seconds 600
@@ -46,10 +46,10 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ env.REGISTRY }}/${{ env.API_IMAGE }}:latest
-            ${{ env.REGISTRY }}/${{ env.API_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.API_IMAGE }}:buildcache,mode=max
+            ${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:latest
+            ${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.API_IMAGE }}:buildcache,mode=max
 
       # Build and push Queue image
       - name: Build and push Queue image
@@ -60,10 +60,10 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:latest
-            ${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache,mode=max
+            ${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:latest
+            ${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.QUEUE_IMAGE }}:buildcache,mode=max
 
       # Build and push UI image
       - name: Build and push UI image
@@ -74,10 +74,10 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:latest
-            ${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:${{ steps.version.outputs.VERSION }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.UI_IMAGE }}:buildcache,mode=max
+            ${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:latest
+            ${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:${{ steps.version.outputs.VERSION }}
+          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:buildcache
+          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ env.UI_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
         run: |
