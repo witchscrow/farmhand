@@ -1,37 +1,40 @@
 # Build stage
-FROM --platform=$BUILDPLATFORM node:20-slim as builder
+FROM --platform=$BUILDPLATFORM node:22-slim as builder
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY services/barn-ui/package.json services/barn-ui/yarn.lock ./
+# Copy root package.json and yarn.lock
+COPY package.json yarn.lock ./
 
-# Install dependencies
-RUN yarn install --frozen-lockfile
+# Copy UI package.json
+COPY services/barn-ui/package.json services/barn-ui/
+COPY services/barn-ui/yarn.lock services/barn-ui/
 
-# Copy source files
-COPY services/barn-ui .
+# Install all dependencies (including dev dependencies)
+RUN yarn install
 
-# Build the application
-RUN yarn build
+# Copy UI source code
+COPY services/barn-ui/ services/barn-ui/
+
+# Build the UI application
+RUN yarn workspace web build
 
 # Runtime stage
-FROM --platform=$TARGETPLATFORM node:20-slim
+FROM --platform=$TARGETPLATFORM node:22-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files for production dependencies
-COPY services/barn-ui/package.json services/barn-ui/yarn.lock ./
+# Copy only production dependencies
+COPY --from=builder /app/services/barn-ui/package.json ./
+COPY --from=builder /app/services/barn-ui/yarn.lock ./
+RUN yarn install --production
 
-# Install production dependencies only
-RUN yarn install --production --frozen-lockfile
+# Copy built application
+COPY --from=builder /app/services/barn-ui/build ./build
 
-# Copy built application from builder
-COPY --from=builder /app/build ./build
-
-# Expose default SvelteKit port
+# Expose port
 EXPOSE 3000
 
 # Start the application
