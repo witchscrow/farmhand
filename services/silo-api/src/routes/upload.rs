@@ -212,6 +212,7 @@ pub async fn upload_video(
                 upload_state.chunks_received.load(Ordering::SeqCst) >= upload_state.total_chunks;
 
             if is_complete {
+                tracing::debug!("Video upload complete, finalizing processing");
                 // Ensure all data is written and flushed
                 upload_state.file.flush().await.map_err(|e| {
                     tracing::error!("Error flushing file: {}", e);
@@ -339,15 +340,32 @@ pub async fn upload_video(
                 match Video::create(&state.db, user.id, video_title, final_path_str.clone()).await {
                     Ok(video) => {
                         tracing::debug!("Saved video metadata to database: {:?}", video);
+
+                        // Create and push video processing job to queue
+                        let process_video_message =
+                            queue::queue::Message::ProcessRawVideoIntoStream {
+                                video_id: video.id.to_string(),
+                            };
+
+                        if let Err(e) = state
+                            .queue
+                            .push(
+                                process_video_message,
+                                None, // Schedule for immediate processing
+                            )
+                            .await
+                        {
+                            tracing::error!("Failed to queue video processing job: {}", e);
+                            return Err(format!("Failed to queue video processing: {}", e));
+                        }
+
+                        tracing::debug!("Successfully queued video processing job");
                     }
                     Err(e) => {
                         tracing::error!("Failed to save video metadata: {}", e);
-                        // Consider whether to return an error here or just log it
                         return Err(format!("Failed to save video metadata: {}", e));
                     }
                 }
-
-                tracing::debug!("Successfully completed file upload and rename");
             }
         }
 
