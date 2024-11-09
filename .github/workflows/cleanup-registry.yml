@@ -1,0 +1,54 @@
+name: cleanup registry
+
+on:
+  schedule:
+    - cron: "0 0 * * 0" # Run weekly at midnight on Sunday
+  workflow_dispatch: # Allow manual triggers
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_REGISTRY_KEY }}
+
+      - name: Clean up API images
+        run: |
+          # Get all tags except 'latest' and 'buildcache', sort by creation date, and keep only the newest 3
+          TAGS_TO_DELETE=$(doctl registry repository list-tags ${{ vars.API_IMAGE }} --format Tag --no-header | grep -v -E '^(latest|buildcache)$' | sort -r | tail -n +4)
+
+          # Delete old tags if they exist
+          if [ ! -z "$TAGS_TO_DELETE" ]; then
+            echo "Deleting old API tags: $TAGS_TO_DELETE"
+            for TAG in $TAGS_TO_DELETE; do
+              doctl registry repository delete-tag ${{ vars.API_IMAGE }} $TAG --force
+            done
+          fi
+
+      - name: Clean up Queue images
+        run: |
+          TAGS_TO_DELETE=$(doctl registry repository list-tags ${{ vars.QUEUE_IMAGE }} --format Tag --no-header | grep -v -E '^(latest|buildcache)$' | sort -r | tail -n +4)
+
+          if [ ! -z "$TAGS_TO_DELETE" ]; then
+            echo "Deleting old Queue tags: $TAGS_TO_DELETE"
+            for TAG in $TAGS_TO_DELETE; do
+              doctl registry repository delete-tag ${{ vars.QUEUE_IMAGE }} $TAG --force
+            done
+          fi
+
+      - name: Clean up UI images
+        run: |
+          TAGS_TO_DELETE=$(doctl registry repository list-tags ${{ vars.UI_IMAGE }} --format Tag --no-header | grep -v -E '^(latest|buildcache)$' | sort -r | tail -n +4)
+
+          if [ ! -z "$TAGS_TO_DELETE" ]; then
+            echo "Deleting old UI tags: $TAGS_TO_DELETE"
+            for TAG in $TAGS_TO_DELETE; do
+              doctl registry repository delete-tag ${{ vars.UI_IMAGE }} $TAG --force
+            done
+          fi
