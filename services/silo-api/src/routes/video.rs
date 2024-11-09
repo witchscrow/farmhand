@@ -21,9 +21,14 @@ pub struct VideoByUserName {
 }
 
 #[derive(Serialize)]
-pub struct VideoResponse {
+pub struct SanitizedVideoData {
     title: String,
     processing_status: ProcessingStatus,
+}
+
+#[derive(Serialize)]
+pub struct VideoResponse {
+    videos: Vec<SanitizedVideoData>,
 }
 
 /// A function for getting videos based on video id, user id, username, or combinations thereof
@@ -40,9 +45,12 @@ pub async fn get_videos(
                 .await
                 .map_err(|e| StatusCode::BAD_REQUEST)?;
             if let Some(video) = video {
-                Ok(Json(VideoResponse {
+                let video = SanitizedVideoData {
                     processing_status: video.processing_status,
                     title: video.title,
+                };
+                Ok(Json(VideoResponse {
+                    videos: vec![video],
                 }))
             } else {
                 Err(StatusCode::NOT_FOUND)
@@ -50,9 +58,25 @@ pub async fn get_videos(
         }
         // Videos by user name
         (None, Some(username_query)) => {
-            Err(StatusCode::NOT_IMPLEMENTED)
-            // TODO: Check if user requesting has access to the user videos requested
-            // TODO: Check the privacy status, guest users can get all public videos
+            let videos = Video::by_username(&state.db, &username_query.name)
+                .await
+                .map_err(|e| {
+                    tracing::error!("Error getting videos by username {e}");
+                    StatusCode::BAD_REQUEST
+                })?;
+
+            if !videos.is_empty() {
+                let videos = videos
+                    .into_iter()
+                    .map(|video| SanitizedVideoData {
+                        title: video.title,
+                        processing_status: video.processing_status,
+                    })
+                    .collect();
+                Ok(Json(VideoResponse { videos }))
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
         }
         // Videos by video id and user name
         (Some(video_query), Some(username_query)) => Err(StatusCode::NOT_IMPLEMENTED),
