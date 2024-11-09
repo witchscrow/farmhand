@@ -11,6 +11,7 @@ use axum::{
     Router,
 };
 use config::Config;
+use queue::{PostgresQueue, Queue};
 use routes::upload::UPLOAD_CHUNK_SIZE;
 use sqlx::PgPool;
 use std::sync::Arc;
@@ -26,6 +27,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 pub struct AppState {
     db: PgPool,
     config: Config,
+    queue: Arc<dyn Queue>,
 }
 
 #[tokio::main]
@@ -49,12 +51,14 @@ async fn main() {
     let db = db::connect_to_database()
         .await
         .expect("Could not connect to database");
+    // Initialize the queue
+    let queue = Arc::new(PostgresQueue::new(db.clone()));
     // Run migrations
     let _mig = db::run_migrations(&db)
         .await
         .expect("Could not run database migrations");
     // Store shared data as state between routes
-    let state = Arc::new(AppState { db, config });
+    let state = Arc::new(AppState { db, config, queue });
     routes::upload::init_cleanup().await;
     // Initialize our router with the shared state and required routes
     let app = Router::new()

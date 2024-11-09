@@ -51,6 +51,7 @@ pub async fn run_worker(queue: Arc<dyn Queue>, concurrency: usize, db_conn: &Poo
 async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
     match job.message {
         Message::ProcessRawVideoIntoStream { video_id } => {
+            tracing::info!("Start video processing for video_id {video_id}");
             // Update video status to Processing
             sqlx::query(
                 "UPDATE videos SET processing_status = 'processing', updated_at = NOW() WHERE id = $1"
@@ -66,12 +67,12 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
                 .await?;
 
             // Create output directory
-            let output_dir = PathBuf::from("processed_videos").join(&video_id.to_string());
-
+            let output_dir = PathBuf::from(get_videos_dir()).join(&video_id.to_string());
+            let ffmpeg_location = get_ffmpeg_location();
             // Initialize HLS converter
             let converter = HLSConverter::new(
-                "/usr/bin/ffmpeg",
-                &output_dir
+                ffmpeg_location.as_str(),
+                output_dir
                     .to_str()
                     .expect("Could not convert output dir to path string"),
             )
@@ -124,4 +125,14 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+/// Get the path to ffmpeg
+fn get_ffmpeg_location() -> String {
+    std::env::var("FFMPEG_LOCATION").unwrap_or_else(|_| "/usr/bin/ffmpeg".to_string())
+}
+
+/// Get the directory for where to store videos
+fn get_videos_dir() -> String {
+    std::env::var("VIDEOS_DIR").unwrap_or_else(|_| "videos".to_string())
 }

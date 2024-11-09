@@ -1,12 +1,7 @@
 use db::connect_to_database;
-use queue::{PostgresQueue, Queue};
+use queue::{runner, PostgresQueue, Queue};
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-mod error;
-mod job;
-mod queue;
-mod runner;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -14,7 +9,7 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "queue=debug,db=debug".into()),
+                .unwrap_or_else(|_| "forge=debug,queue=debug,db=debug".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();

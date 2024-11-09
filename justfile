@@ -8,7 +8,7 @@ start-web:
     yarn start
 
 start-queue:
-    cargo run -p queue
+    cargo run -p forge
 
 # Development commands
 dev-api: start-api
@@ -47,7 +47,7 @@ build-api:
     cargo build -p api --release
 
 build-queue:
-    cargo build -p queue --release
+    cargo build -p forge --release
 
 # Docker build commands - Queue Service (forge-queue)
 biq: build-image-queue  # Shorthand for building queue image
