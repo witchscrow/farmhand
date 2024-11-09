@@ -18,9 +18,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get release version
+      - name: Get commit hash
         id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
