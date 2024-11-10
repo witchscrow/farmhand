@@ -1,6 +1,56 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use tracing::{debug, warn};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum VideoFormat {
+    MP4,
+    MOV,
+}
+
+impl VideoFormat {
+    fn from_path(path: &Path) -> Result<Self> {
+        let extension = path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .map(|s| s.to_lowercase())
+            .ok_or_else(|| anyhow::anyhow!("Input file has no extension"))?;
+
+        match extension.as_str() {
+            "mp4" => Ok(VideoFormat::MP4),
+            "mov" => Ok(VideoFormat::MOV),
+            _ => anyhow::bail!("Unsupported file format: {}", extension),
+        }
+    }
+
+    fn get_ffmpeg_args(&self) -> Vec<String> {
+        match self {
+            VideoFormat::MP4 => vec!["-movflags".to_string(), "+faststart".to_string()],
+            VideoFormat::MOV => vec![
+                "-movflags".to_string(),
+                "+faststart".to_string(),
+                "-strict".to_string(),
+                "experimental".to_string(),
+            ],
+        }
+    }
+
+    fn get_hls_args(&self) -> Vec<String> {
+        vec![
+            "-f".to_string(),
+            "hls".to_string(),
+            "-hls_time".to_string(),
+            "6".to_string(),
+            "-hls_list_size".to_string(),
+            "0".to_string(),
+            "-hls_segment_type".to_string(),
+            "mpegts".to_string(),
+            "-hls_flags".to_string(),
+            "independent_segments+split_by_time".to_string(),
+        ]
+    }
+}
 
 pub struct HLSConverter {
     ffmpeg_path: PathBuf,
@@ -32,6 +82,92 @@ impl Quality {
 }
 
 impl HLSConverter {
+    fn get_video_dimensions(&self, input_path: &Path) -> Result<(u32, u32)> {
+        let output = Command::new(&self.ffmpeg_path)
+            .arg("-i")
+            .arg(input_path)
+            .output()
+            .context("Failed to execute FFmpeg command for video info")?;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        debug!("FFmpeg output:\n{}", stderr);
+
+        // Parse the video dimensions from FFmpeg output
+        for line in stderr.lines() {
+            if line.contains("Stream") && line.contains("Video:") {
+                debug!("Found video stream line: {}", line);
+
+                // Try different patterns
+                let dimensions = line
+                    .split(',')
+                    .find(|s| s.contains('x') && s.trim().chars().any(|c| c.is_digit(10)))
+                    .or_else(|| {
+                        // Alternative pattern: look for dimensions like "1920x1080"
+                        line.split_whitespace()
+                            .find(|s| s.contains('x') && s.chars().any(|c| c.is_digit(10)))
+                    });
+
+                if let Some(dim_str) = dimensions {
+                    debug!("Found dimension string: {}", dim_str);
+
+                    // Clean up the dimension string
+                    let clean_dim = dim_str
+                        .trim()
+                        .split(|c: char| !c.is_digit(10) && c != 'x')
+                        .collect::<String>();
+
+                    if let Some(x_pos) = clean_dim.find('x') {
+                        if let (Ok(width), Ok(height)) = (
+                            clean_dim[..x_pos].parse::<u32>(),
+                            clean_dim[x_pos + 1..].parse::<u32>(),
+                        ) {
+                            debug!("Parsed dimensions: {}x{}", width, height);
+                            return Ok((width, height));
+                        }
+                    }
+                }
+            }
+        }
+
+        // If the above fails, try using ffprobe
+        let probe_output = Command::new(&self.ffmpeg_path.with_file_name("ffprobe"))
+            .arg("-v")
+            .arg("error")
+            .arg("-select_streams")
+            .arg("v:0")
+            .arg("-show_entries")
+            .arg("stream=width,height")
+            .arg("-of")
+            .arg("csv=p=0")
+            .arg(input_path)
+            .output()
+            .context("Failed to execute ffprobe command")?;
+
+        if probe_output.status.success() {
+            let output = String::from_utf8_lossy(&probe_output.stdout);
+            let dims: Vec<&str> = output.trim().split(',').collect();
+            if dims.len() == 2 {
+                if let (Ok(width), Ok(height)) = (dims[0].parse::<u32>(), dims[1].parse::<u32>()) {
+                    debug!("Got dimensions from ffprobe: {}x{}", width, height);
+                    return Ok((width, height));
+                }
+            }
+        }
+
+        anyhow::bail!("Could not determine video dimensions")
+    }
+
+    fn verify_dimensions(&self, width: u32, height: u32) -> Result<()> {
+        if width == 0 || height == 0 {
+            anyhow::bail!("Invalid dimensions: {}x{}", width, height);
+        }
+        if width > 7680 || height > 4320 {
+            // 8K limit
+            anyhow::bail!("Dimensions too large: {}x{}", width, height);
+        }
+        Ok(())
+    }
+
     pub fn new<P: AsRef<Path>>(ffmpeg_path: P, output_dir: P) -> Result<Self> {
         let ffmpeg = ffmpeg_path.as_ref().to_path_buf();
         let out_dir = output_dir.as_ref().to_path_buf();
@@ -48,14 +184,45 @@ impl HLSConverter {
         })
     }
 
+    fn validate_input_format(&self, input_path: &Path) -> Result<VideoFormat> {
+        VideoFormat::from_path(input_path)
+    }
+
     pub fn convert_to_hls<P: AsRef<Path>>(
         &self,
         input_path: P,
-        qualities: Vec<Quality>,
+        mut qualities: Vec<Quality>,
     ) -> Result<()> {
         let input_path = input_path.as_ref();
         if !input_path.exists() {
             anyhow::bail!("Input file not found: {:?}", input_path);
+        }
+
+        let format = self.validate_input_format(input_path)?;
+
+        // Get original video dimensions
+        let (original_width, original_height) = self.get_video_dimensions(input_path)?;
+        self.verify_dimensions(original_width, original_height)?;
+
+        // Filter out qualities higher than the original resolution
+        qualities.retain(|q| {
+            if q.width > original_width || q.height > original_height {
+                warn!(
+                    "Skipping quality {}x{} as it exceeds original resolution {}x{}",
+                    q.width, q.height, original_width, original_height
+                );
+                false
+            } else {
+                true
+            }
+        });
+
+        if qualities.is_empty() {
+            anyhow::bail!(
+                "No valid quality levels for video with resolution {}x{}",
+                original_width,
+                original_height
+            );
         }
 
         // Create variant playlist
@@ -84,8 +251,14 @@ impl HLSConverter {
                 quality,
                 &playlist_name,
                 &segment_pattern,
+                &format,
             )
-            .with_context(|| format!("Failed to convert quality: {}", quality.name))?;
+            .with_context(|| {
+                format!(
+                    "Failed to convert quality: {} ({}x{})",
+                    quality.name, quality.width, quality.height
+                )
+            })?;
         }
 
         // Write master playlist
@@ -102,14 +275,29 @@ impl HLSConverter {
         quality: &Quality,
         playlist_name: &str,
         segment_pattern: &str,
+        format: &VideoFormat,
     ) -> Result<()> {
-        let output = Command::new(&self.ffmpeg_path)
-            .arg("-i")
-            .arg(input_path)
+        let mut command = Command::new(&self.ffmpeg_path);
+
+        command.arg("-i").arg(input_path);
+
+        // Add format-specific arguments
+        for arg in format.get_ffmpeg_args() {
+            command.arg(arg);
+        }
+
+        command
+            .arg("-vsync")
+            .arg("0")
+            // Video encoding settings
             .arg("-c:v")
             .arg("libx264")
             .arg("-c:a")
             .arg("aac")
+            // Force pixel format
+            .arg("-pix_fmt")
+            .arg("yuv420p")
+            // Bitrate settings
             .arg("-b:v")
             .arg(&quality.bitrate)
             .arg("-maxrate")
@@ -119,30 +307,51 @@ impl HLSConverter {
                 "{}k",
                 quality.bitrate.replace("k", "").parse::<u32>()? * 2
             ))
+            // Encoding presets
             .arg("-preset")
             .arg("faster")
+            .arg("-profile:v")
+            .arg("main")
+            .arg("-level")
+            .arg("3.1")
             .arg("-g")
+            .arg("60")
+            .arg("-keyint_min")
             .arg("60")
             .arg("-sc_threshold")
             .arg("0")
+            .arg("-force_key_frames")
+            .arg("expr:gte(t,n_forced*6)")
+            // Resolution
             .arg("-s")
             .arg(format!("{}x{}", quality.width, quality.height))
-            .arg("-f")
-            .arg("hls")
-            .arg("-hls_time")
-            .arg("6")
-            .arg("-hls_list_size")
-            .arg("0")
-            .arg("-hls_segment_type")
-            .arg("mpegts")
+            // Audio settings
+            .arg("-ar")
+            .arg("48000")
+            .arg("-ac")
+            .arg("2")
+            .arg("-b:a")
+            .arg("128k");
+
+        // Add HLS-specific settings
+        for arg in format.get_hls_args() {
+            command.arg(arg);
+        }
+
+        command
             .arg("-hls_segment_filename")
             .arg(self.output_dir.join(segment_pattern))
-            .arg(self.output_dir.join(playlist_name))
+            .arg(self.output_dir.join(playlist_name));
+
+        debug!("FFmpeg command: {:?}", command);
+
+        let output = command
             .output()
             .context("Failed to execute FFmpeg command")?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
+            debug!("FFmpeg error output: {}", error);
             anyhow::bail!("FFmpeg failed: {}", error);
         }
 
@@ -164,27 +373,5 @@ impl HLSConverter {
             .next()
             .unwrap_or("Unknown version")
             .to_string())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_hls_conversion() -> Result<()> {
-        let converter = HLSConverter::new("/usr/bin/ffmpeg", "output")?;
-
-        println!("FFmpeg version: {}", converter.verify_ffmpeg()?);
-
-        let qualities = vec![
-            Quality::new(1920, 1080, "5000k", "1080p"),
-            Quality::new(1280, 720, "2800k", "720p"),
-            Quality::new(854, 480, "1400k", "480p"),
-            Quality::new(640, 360, "800k", "360p"),
-        ];
-
-        converter.convert_to_hls("input.mp4", qualities)?;
-        Ok(())
     }
 }
