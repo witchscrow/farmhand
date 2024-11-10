@@ -19,12 +19,14 @@
 	</aside>
 	<Card>
 		<div slot="header">
-			<h3 class="font-serif text-lg text-primary-700">Your Account</h3>
-			<p class="text-sm text-gray-700">Basic information of you, the user</p>
+			<h3 class="font-serif text-lg text-primary-700 dark:text-primary-100">Your Account</h3>
+			<p class="text-sm text-primary-400 dark:text-primary-200">
+				Basic information of you, the user
+			</p>
 		</div>
 		<div slot="content" class="space-y-1">
-			<p class="text-lg font-semibold">{user.username}</p>
-			<p class="text-gray-700">{user.email}</p>
+			<p class="text-lg font-semibold text-primary-700 dark:text-white">{user.username}</p>
+			<p class="text-primary-400 dark:text-white">{user.email}</p>
 		</div>
 	</Card>
 </section>
