@@ -5,13 +5,13 @@
 </script>
 
 <div
-	class="rounded-sm border-4 border-secondary-600 bg-secondary-100/90 p-6 text-left shadow-sm shadow-primary-800 dark:border-primary-600 dark:bg-primary-800/90"
+	class="relative rounded-lg border border-primary-200/20 bg-secondary-400 p-6 shadow-lg backdrop-blur-sm transition-all hover:bg-primary-900 dark:border-primary-900/40 dark:bg-primary-800 dark:hover:bg-black"
 >
-	<h3 class="mb-2 text-secondary-800 dark:text-white">
+	<h3 class="mb-2 text-base font-medium text-secondary-900 dark:text-white">
 		<span class="text-xs">{icon}</span>
 		{title}
 	</h3>
-	<p class="text-sm text-gray-600 dark:text-gray-300">
+	<p class="text-sm text-secondary-800 dark:text-primary-100/80">
 		{description}
 	</p>
 </div>
