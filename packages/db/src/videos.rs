@@ -93,4 +93,17 @@ impl Video {
         .fetch_all(pool)
         .await
     }
+    /// A function for getting all videos
+    pub async fn all(pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Video>(
+            r#"
+                SELECT id, user_id, title, raw_video_path, processed_video_path,
+                       processing_status, created_at, updated_at
+                FROM videos
+                ORDER BY created_at DESC
+                "#,
+        )
+        .fetch_all(pool)
+        .await
+    }
 }
