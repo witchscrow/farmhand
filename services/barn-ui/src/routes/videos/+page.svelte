@@ -37,11 +37,11 @@
 		<div class="grid gap-4">
 			{#each data.videos as video}
 				<div
-					class="relative rounded-lg border border-primary-200/20 bg-black/40 p-4 shadow-lg backdrop-blur-sm transition-all hover:bg-black/60 dark:border-primary-800/40 dark:bg-primary-950/40 dark:hover:bg-primary-900/60"
+					class="relative rounded-lg border border-primary-200/20 bg-black/40 p-6 shadow-lg backdrop-blur-sm transition-all hover:bg-primary-900 dark:border-primary-900/40 dark:hover:bg-black"
 				>
 					<a href="/watch?v={video.id}" class="block">
 						<div class="flex items-start justify-between">
-							<h2 class="text-lg font-medium text-white dark:text-primary-200">
+							<h2 class="text-lg font-medium text-white dark:text-white">
 								{video.title}
 							</h2>
 							{#if video.status !== 'Completed'}
@@ -50,7 +50,7 @@
 								</div>
 							{/if}
 						</div>
-						<div class="mt-2 text-sm text-primary-100/80 dark:text-primary-300/80">
+						<div class="mt-2 text-sm text-primary-100/80 dark:text-primary-100/80">
 							<div>Created: {formatDate(video.created_at)}</div>
 							<div>Updated: {formatDate(video.updated_at)}</div>
 						</div>
