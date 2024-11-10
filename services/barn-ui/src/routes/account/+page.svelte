@@ -26,9 +26,18 @@
 				Basic information of you, the user
 			</p>
 		</div>
-		<div slot="content" class="space-y-1">
-			<p class="text-lg font-semibold text-primary-700 dark:text-white">{user.username}</p>
-			<p class="text-primary-400 dark:text-white">{user.email}</p>
+		<div slot="content" class="flex justify-between">
+			<div>
+				<p class="text-lg font-semibold text-primary-700 dark:text-white">{user.username}</p>
+				<p class="text-primary-400 dark:text-white">{user.email}</p>
+			</div>
+			<div class="flex flex-col items-end">
+				<p class="text-xs text-primary-400 dark:text-white">Role</p>
+				<span
+					class="rounded-full bg-primary-100 font-medium text-primary-800 dark:bg-primary-800 dark:text-primary-100"
+					>{user.role}</span
+				>
+			</div>
 		</div>
 	</Card>
 </section>

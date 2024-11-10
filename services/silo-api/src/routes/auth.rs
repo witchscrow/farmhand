@@ -83,7 +83,10 @@ pub async fn login(
         user = Some(
             User::from_username(username, &state.db)
                 .await
-                .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
+                .map_err(|e| {
+                    tracing::error!("Error getting user by username {e}");
+                    StatusCode::INTERNAL_SERVER_ERROR
+                })?,
         );
     }
     // Otherwise, we use the email
