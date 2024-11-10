@@ -4,4 +4,4 @@ target/
 .env*
 !.env.example
 uploads/
-videos/
+/videos
