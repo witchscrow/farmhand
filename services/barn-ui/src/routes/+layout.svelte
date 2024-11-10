@@ -13,7 +13,7 @@
 
 <main class="flex min-h-screen flex-col">
 	<Header user={data.user} />
-	<section class="mx-auto min-h-full w-full max-w-screen-lg flex-grow p-4">
+	<section class="mx-auto min-h-full w-full flex-grow p-4">
 		{@render children()}
 	</section>
 	<Footer />

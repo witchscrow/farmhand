@@ -44,10 +44,10 @@
 	});
 </script>
 
-<section class="mx-auto max-w-4xl space-y-6 p-4">
+<section class="mx-auto max-w-screen-2xl space-y-6 p-4">
 	<div class="space-y-2 text-center">
-		<h1 class="font-serif text-2xl text-primary-700 dark:text-primary-500">Watch</h1>
-		<p class="text-primary-800 dark:text-primary-100">
+		<h1 class="font-serif text-2xl text-secondary-700 dark:text-primary-500">Watch</h1>
+		<p class="text-secondary-800 dark:text-primary-100">
 			Stream your content with our high-performance video player
 		</p>
 	</div>
@@ -63,7 +63,7 @@
 		/>
 	{/if}
 
-	<div class="aspect-video relative overflow-hidden rounded-lg bg-primary-950/50">
+	<div class="aspect-video relative w-full overflow-hidden rounded-lg bg-primary-950/50">
 		{#if data.video}
 			{#if status === 'Processing'}
 				<div class="flex h-full items-center justify-center">
