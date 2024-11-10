@@ -83,7 +83,6 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
                 Quality::new(1920, 1080, "5000k", "1080p"),
                 Quality::new(1280, 720, "2800k", "720p"),
                 Quality::new(854, 480, "1400k", "480p"),
-                Quality::new(640, 360, "800k", "360p"),
             ];
 
             // Process the video

@@ -25,6 +25,7 @@ pub enum ProcessingStatus {
 }
 
 impl Video {
+    /// A function for creating new video data in the db
     pub async fn create(
         pool: &PgPool,
         user_id: Uuid,
@@ -45,6 +46,64 @@ impl Video {
         .bind(title)
         .bind(raw_video_path)
         .fetch_one(pool)
+        .await
+    }
+    /// A function for fetching video data from the db by video ID
+    pub async fn by_id(pool: &PgPool, video_id: &str) -> Result<Option<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Video>(
+            r#"
+            SELECT id, user_id, title, raw_video_path, processed_video_path,
+                   processing_status, created_at, updated_at
+            FROM videos
+            WHERE id = $1
+            "#,
+        )
+        .bind(video_id)
+        .fetch_optional(pool)
+        .await
+    }
+    /// A function for getting all user owned videos by user ID
+    pub async fn by_userid(pool: &PgPool, user_id: Uuid) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Video>(
+            r#"
+            SELECT id, user_id, title, raw_video_path, processed_video_path,
+                   processing_status, created_at, updated_at
+            FROM videos
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+    }
+    /// A function for getting all user owned videos by user name
+    pub async fn by_username(pool: &PgPool, username: &str) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Video>(
+            r#"
+            SELECT v.id, v.user_id, v.title, v.raw_video_path, v.processed_video_path,
+                   v.processing_status, v.created_at, v.updated_at
+            FROM videos v
+            JOIN users u ON u.id = v.user_id
+            WHERE u.name = $1
+            ORDER BY v.created_at DESC
+            "#,
+        )
+        .bind(username)
+        .fetch_all(pool)
+        .await
+    }
+    /// A function for getting all videos
+    pub async fn all(pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Video>(
+            r#"
+                SELECT id, user_id, title, raw_video_path, processed_video_path,
+                       processing_status, created_at, updated_at
+                FROM videos
+                ORDER BY created_at DESC
+                "#,
+        )
+        .fetch_all(pool)
         .await
     }
 }

@@ -36,7 +36,7 @@ async fn main() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                "api=debug,db=debug,tower_http=debug,axum::rejection=trace".into()
+                "api=debug,db=debug,queue=debug,tower_http=debug,axum::rejection=trace".into()
             }),
         )
         .with(tracing_subscriber::fmt::layer())
@@ -81,19 +81,41 @@ async fn main() {
         .route(
             "/upload",
             post(routes::upload::upload_video)
-                .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8)) // Increased for concurrent uploads
+                .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,
                 )),
         )
-        // TODO: Attach this to the upload route when you re-add it
+        .nest(
+            "/video",
+            Router::new()
+                .route("/", get(routes::video::get_videos))
+                .layer(axum_mw::from_fn_with_state(
+                    state.clone(),
+                    middleware::auth::auth_middleware,
+                )),
+        )
+        .nest_service("/videos", tower_http::services::ServeDir::new("videos"))
         .with_state(state)
         .layer(CorsLayer::permissive())
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new())
-                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .make_span_with(|request: &axum::http::Request<_>| {
+                    tracing::debug_span!(
+                        "http_request",
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        path = %request.uri().path(),
+                    )
+                })
+                .on_request(|request: &axum::http::Request<_>, _span: &tracing::Span| {
+                    tracing::info!(
+                        method = %request.method(),
+                        path = %request.uri().path(),
+                        "incoming request"
+                    );
+                })
                 .on_response(
                     DefaultOnResponse::new()
                         .level(Level::INFO)
