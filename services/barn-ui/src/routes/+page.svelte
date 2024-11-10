@@ -4,7 +4,7 @@
 
 <section class="my-10 flex flex-col space-y-8 text-center">
 	<div class="space-y-4">
-		<h1 class="font-serif text-4xl text-primary-700 dark:text-primary-200">Farmhand</h1>
+		<h1 class="font-serif text-4xl text-primary-700 dark:text-primary-500">Farmhand</h1>
 		<p class="text-xl">It's farming time, yeehaw! 🌾</p>
 		<p class="mx-auto max-w-2xl text-gray-600 dark:text-gray-300">
 			A powerful, open-source clip and VOD management system built for creators and artists who want

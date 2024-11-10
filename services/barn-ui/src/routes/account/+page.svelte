@@ -12,7 +12,9 @@
 
 <section class="flex flex-col items-center justify-center space-y-10">
 	<aside class="flex w-full flex-col space-y-4 text-center">
-		<h1 class="font-serif text-3xl text-primary-800">Welcome {user.username}</h1>
+		<h1 class="font-serif text-2xl text-primary-700 dark:text-primary-500">
+			Welcome {user.username}
+		</h1>
 		<p>Manage your account here</p>
 	</aside>
 	<Card>

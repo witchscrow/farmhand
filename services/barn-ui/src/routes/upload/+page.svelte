@@ -240,7 +240,7 @@
 
 <section class="flex flex-col items-center justify-center">
 	<aside class="flex flex-col space-y-4 text-center">
-		<h1 class="font-serif text-3xl text-primary-800">Upload</h1>
+		<h1 class="font-serif text-2xl text-primary-700 dark:text-primary-500">Upload</h1>
 		<p>Upload your latest livestream or replay</p>
 		<Alert
 			type="info"

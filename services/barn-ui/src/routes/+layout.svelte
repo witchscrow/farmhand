@@ -4,7 +4,10 @@
 	import type { LayoutServerData } from './$types';
 	import Header from '$lib/components/Header.svelte';
 	import Footer from '$lib/components/Footer.svelte';
+	import { storePopup } from '@skeletonlabs/skeleton';
+	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 
+	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	let { children, data }: { children: Snippet; data: LayoutServerData } = $props();
 </script>
 
