@@ -5,6 +5,7 @@
 
 	let { data } = $props();
 	let status = $derived(data.video.status);
+	// eslint-disable-next-line
 	let videoElement: HTMLVideoElement;
 
 	function getAlertType(status: string) {
