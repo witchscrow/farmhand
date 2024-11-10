@@ -2,7 +2,7 @@
 	import FeatureCard from '$lib/components/FeatureCard.svelte';
 </script>
 
-<section class="my-10 flex flex-col space-y-8 text-center">
+<section class="mx-auto my-10 flex max-w-screen-lg flex-col space-y-8 text-center">
 	<div class="space-y-4">
 		<h1 class="font-serif text-4xl text-secondary-700 dark:text-primary-500">Farmhand</h1>
 		<p class="text-lg text-secondary-800 dark:text-primary-100">It's farming time, yeehaw! 🌾</p>
