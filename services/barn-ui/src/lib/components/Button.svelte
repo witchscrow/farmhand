@@ -6,6 +6,7 @@
 		children: Snippet;
 		href?: string;
 		class?: string;
+		disabled?: boolean;
 		type?: 'button' | 'submit' | 'reset' | null | undefined;
 	}
 	let {
@@ -13,6 +14,7 @@
 		href,
 		children,
 		class: className = '',
+		disabled = false,
 		type = 'button',
 		...restProps
 	}: Props = $props();
@@ -32,6 +34,7 @@
 {:else}
 	<button
 		{type}
+		{disabled}
 		class="{className} inline-flex items-center justify-between rounded-sm border border-b-4 px-4 py-1 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-50 {variant ===
 		'primary'
 			? 'border-primary-900 bg-primary-700 text-white'

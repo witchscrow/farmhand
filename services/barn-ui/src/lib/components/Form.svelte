@@ -34,7 +34,7 @@
 	<form
 		method="POST"
 		use:enhance={handleSubmit}
-		class="mt-8 w-full max-w-sm flex-grow rounded border-2 border-secondary-950 bg-white p-6 shadow-md dark:border-black dark:bg-primary-900 dark:shadow-xl"
+		class="mt-8 w-full max-w-sm flex-grow rounded border-2 border-secondary-900 bg-white p-6 shadow-md dark:border-black dark:bg-primary-900 dark:shadow-xl"
 	>
 		{#if error}
 			<Alert type="error" message={error} />
@@ -42,7 +42,7 @@
 
 		<slot />
 
-		<Button type="submit" disabled={isSubmitting} class="w-full border-primary-950 py-2">
+		<Button type="submit" disabled={isSubmitting} variant="secondary" class="w-full py-2">
 			{#if isSubmitting}
 				<Throbber />
 				<span class="w-full text-center">{loadingText}</span>
