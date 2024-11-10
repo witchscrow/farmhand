@@ -96,12 +96,26 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
+        .nest_service("/videos", tower_http::services::ServeDir::new("videos"))
         .with_state(state)
         .layer(CorsLayer::permissive())
         .layer(
             TraceLayer::new_for_http()
-                .make_span_with(DefaultMakeSpan::new())
-                .on_request(DefaultOnRequest::new().level(Level::INFO))
+                .make_span_with(|request: &axum::http::Request<_>| {
+                    tracing::debug_span!(
+                        "http_request",
+                        method = %request.method(),
+                        uri = %request.uri(),
+                        path = %request.uri().path(),
+                    )
+                })
+                .on_request(|request: &axum::http::Request<_>, _span: &tracing::Span| {
+                    tracing::info!(
+                        method = %request.method(),
+                        path = %request.uri().path(),
+                        "incoming request"
+                    );
+                })
                 .on_response(
                     DefaultOnResponse::new()
                         .level(Level::INFO)

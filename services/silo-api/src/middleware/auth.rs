@@ -20,9 +20,16 @@ pub async fn auth_middleware(
     let raw_auth_header = req.headers_mut().get(http::header::AUTHORIZATION);
     // Pull the full header string out of the header
     let auth_header = match raw_auth_header {
-        Some(header) => header.to_str().map_err(|_| StatusCode::BAD_REQUEST),
+        Some(header) => {
+            tracing::debug!("Auth headers found, attempting user lookup");
+            header.to_str().map_err(|_| StatusCode::BAD_REQUEST)
+        }
         // This middleware allows for optional users, so we just return early if no auth headers are found
-        None => return Ok(next.run(req).await),
+        None => {
+            tracing::debug!("No auth headers, skipping user lookup");
+            req.extensions_mut().insert(None::<User>);
+            return Ok(next.run(req).await);
+        }
     }?;
     // Full header is expected to be `Bearer token`, split by whitespace
     let mut split_header = auth_header.split_whitespace();
@@ -44,6 +51,6 @@ pub async fn auth_middleware(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
     // Pass the user to the extensions
-    req.extensions_mut().insert(user);
+    req.extensions_mut().insert(Some(user));
     Ok(next.run(req).await)
 }

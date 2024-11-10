@@ -10,20 +10,24 @@ use std::sync::Arc;
 
 use crate::AppState;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct VideoByID {
     id: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct VideoByUserName {
     name: String,
 }
 
 #[derive(Serialize)]
 pub struct SanitizedVideoData {
+    id: String,
     title: String,
     processing_status: ProcessingStatus,
+    video_path: Option<String>,
+    created_at: chrono::DateTime<chrono::Utc>,
+    updated_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Serialize)]
@@ -38,6 +42,11 @@ pub async fn get_videos(
     video_query: Option<Query<VideoByID>>,
     username_query: Option<Query<VideoByUserName>>,
 ) -> impl IntoResponse {
+    tracing::debug!(
+        "Got query params:\n\tvideo_query: {:?}\n\tusername_query: {:?}",
+        video_query,
+        username_query
+    );
     match (video_query, username_query) {
         // Video by ID
         (Some(video_query), None) => {
@@ -46,8 +55,12 @@ pub async fn get_videos(
                 .map_err(|e| StatusCode::BAD_REQUEST)?;
             if let Some(video) = video {
                 let video = SanitizedVideoData {
+                    id: video.id,
                     processing_status: video.processing_status,
                     title: video.title,
+                    video_path: video.processed_video_path,
+                    created_at: video.created_at,
+                    updated_at: video.updated_at,
                 };
                 Ok(Json(VideoResponse {
                     videos: vec![video],
@@ -69,8 +82,12 @@ pub async fn get_videos(
                 let videos = videos
                     .into_iter()
                     .map(|video| SanitizedVideoData {
+                        id: video.id,
                         title: video.title,
                         processing_status: video.processing_status,
+                        video_path: video.processed_video_path,
+                        created_at: video.created_at,
+                        updated_at: video.updated_at,
                     })
                     .collect();
                 Ok(Json(VideoResponse { videos }))
@@ -80,7 +97,33 @@ pub async fn get_videos(
         }
         // Videos by video id and user name
         (Some(video_query), Some(username_query)) => Err(StatusCode::NOT_IMPLEMENTED),
-        // No query params
-        (None, None) => Err(StatusCode::NOT_IMPLEMENTED),
+        // No query params, get all videos
+        (None, None) => {
+            tracing::debug!("No queries provided, getting all videos");
+            let videos = match Video::all(&state.db).await {
+                Ok(videos) => videos,
+                Err(e) => {
+                    tracing::error!("Error listing videos: {e}");
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
+            };
+
+            if !videos.is_empty() {
+                let videos = videos
+                    .into_iter()
+                    .map(|video| SanitizedVideoData {
+                        id: video.id,
+                        title: video.title,
+                        processing_status: video.processing_status,
+                        video_path: video.processed_video_path,
+                        created_at: video.created_at,
+                        updated_at: video.updated_at,
+                    })
+                    .collect();
+                Ok(Json(VideoResponse { videos }))
+            } else {
+                Err(StatusCode::NOT_FOUND)
+            }
+        }
     }
 }
