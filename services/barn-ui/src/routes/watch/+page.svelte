@@ -63,7 +63,7 @@
 		/>
 	{/if}
 
-	<div class="aspect-video relative w-full overflow-hidden rounded-lg bg-primary-950/50">
+	<div class="aspect-video relative w-full overflow-hidden rounded-sm bg-primary-950/50">
 		{#if data.video}
 			{#if status === 'Processing'}
 				<div class="flex h-full items-center justify-center">
@@ -74,7 +74,13 @@
 					<p class="text-primary-200">This video failed to process</p>
 				</div>
 			{:else}
-				<video bind:this={videoElement} class="h-full w-full" controls playsinline autoplay>
+				<video
+					bind:this={videoElement}
+					class="bg-surface-100 h-full w-full border-8 border-secondary-300 shadow-xl dark:border-primary-900 dark:bg-primary-900"
+					controls
+					playsinline
+					autoplay
+				>
 					<track kind="captions" />
 					Your browser does not support the video tag.
 				</video>
