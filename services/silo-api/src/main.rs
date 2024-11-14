@@ -17,7 +17,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::{
     cors::CorsLayer,
-    trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    trace::{DefaultOnResponse, TraceLayer},
     LatencyUnit,
 };
 use tracing::Level;
@@ -107,6 +107,7 @@ async fn main() {
                         method = %request.method(),
                         uri = %request.uri(),
                         path = %request.uri().path(),
+                        query_params = %request.uri().query().unwrap_or_default()
                     )
                 })
                 .on_request(|request: &axum::http::Request<_>, _span: &tracing::Span| {

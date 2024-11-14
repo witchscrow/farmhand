@@ -54,9 +54,19 @@ export const fetchVideo = async (videoID: string): Promise<Video | null> => {
 	}
 };
 
-export const fetchVideos = async (): Promise<Video[]> => {
+type FetchVideoOpts = {
+	channel?: string; // Username of user usually
+};
+
+export const fetchVideos = async (options?: FetchVideoOpts): Promise<Video[]> => {
 	try {
-		const response = await fetch(`${env.API_URL}/video`);
+		const baseURL = `${env.API_URL}`;
+		const params = new URLSearchParams();
+		if (options?.channel) {
+			params.append('username', options.channel);
+		}
+		const queryString = params.toString();
+		const response = await fetch(`${baseURL}/video?${queryString}`);
 
 		if (response.ok) {
 			const videoData: { videos: RequestedVideo[] } = await response.json();
