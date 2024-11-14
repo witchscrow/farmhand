@@ -1,8 +1,4 @@
 <script lang="ts">
-	import Close from '$lib/components/icons/Close.svelte';
-	import Pencil from '$lib/components/icons/Pencil.svelte';
-	import { hasPermission, Permission } from '$lib/permissions.js';
-
 	let { data } = $props();
 
 	function formatDate(dateString: string) {
@@ -14,13 +10,6 @@
 			minute: '2-digit'
 		});
 	}
-
-	const canUser = (permission: Permission): boolean => {
-		if (!data.user) {
-			return false;
-		}
-		return hasPermission(data.user.role, permission);
-	};
 </script>
 
 <section class="mx-auto max-w-4xl space-y-6 p-4">
@@ -49,29 +38,6 @@
 							<div>Updated: {formatDate(video.updated_at)}</div>
 						</div>
 					</a>
-					<div class="ml-4 flex h-full flex-col items-end space-y-4">
-						{#if video.status !== 'Processing'}
-							{#if canUser(Permission.VIDEO_DELETE)}
-								<button
-									class="variant-filled-error btn btn-sm"
-									onclick={() => console.warn('NOT IMPLEMENTED: Delete video')}
-								>
-									<Close />
-									<span>Delete</span>
-								</button>
-							{/if}
-							{#if canUser(Permission.VIDEO_EDIT)}
-								<button
-									class="variant-filled-tertiary btn btn-sm"
-									onclick={() => console.log('NOT IMPLEMENTED: Edit video')}
-									disabled
-								>
-									<Pencil />
-									<span>Edit</span>
-								</button>
-							{/if}
-						{/if}
-					</div>
 				</div>
 			{/each}
 		</div>
