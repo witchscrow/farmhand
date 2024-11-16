@@ -9,10 +9,10 @@
 	let { children, data }: { children: Snippet; data: LayoutServerData } = $props();
 </script>
 
-<main class="grid grid-cols-12 grid-rows-main">
+<main class="grid min-h-screen grid-cols-12 grid-rows-main divide-x divide-y">
 	<Header
 		width="w-full max-w-none"
-		class="col-span-12 row-start-1 border-b-2 border-secondary-400 bg-surface-500/30 dark:border-surface-500"
+		class="dark:bg-primary-950/30 col-span-12 row-start-1 border-primary-200/20 bg-black/40 backdrop-blur-sm dark:border-primary-800/40"
 	>
 		{#snippet actions()}
 			<nav class="mr-4 flex justify-evenly space-x-4">
@@ -21,9 +21,17 @@
 			</nav>
 		{/snippet}
 	</Header>
-	<aside class="col-span-2 row-start-2">This is where the sidebar goes</aside>
-	<section class="col-span-10 row-start-2 mx-auto min-h-full w-full flex-grow p-4">
+	<aside
+		class="col-span-2 row-start-2 min-h-max border-primary-200/20 bg-black/40 p-4 backdrop-blur-sm dark:border-primary-800/40"
+	>
+		This is where the sidebar goes
+	</aside>
+	<section
+		class="col-span-10 row-start-2 mx-auto min-h-full w-full flex-grow border-primary-200/20 bg-black/40 p-4 backdrop-blur-sm dark:border-primary-800/40"
+	>
 		{@render children()}
 	</section>
-	<Footer class="col-span-12 row-start-3" />
+	<Footer
+		class="col-span-12 row-start-3 border-primary-200/20 bg-black/40 backdrop-blur-sm dark:border-primary-800/40"
+	/>
 </main>
