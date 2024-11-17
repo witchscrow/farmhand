@@ -727,11 +727,6 @@
     "@typescript-eslint/types" "8.12.2"
     eslint-visitor-keys "^3.4.3"
 
-"@vincjo/datatables@^2.0.5":
-  version "2.0.5"
-  resolved "https://registry.yarnpkg.com/@vincjo/datatables/-/datatables-2.0.5.tgz#6b179dced45cd008a642cd0f59ebc20b1c23d8af"
-  integrity sha512-ZD5Y5Tp1jlVSJhKEZqwhaUTUpTi+voz2Hx+Yr2HQ1JoCisYKk4T+MbJNmB6fN/Mra/hjrlEm5j/Ap5Ud0qydLw==
-
 acorn-jsx@^5.3.2:
   version "5.3.2"
   resolved "https://registry.npmjs.org/acorn-jsx/-/acorn-jsx-5.3.2.tgz"
