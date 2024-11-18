@@ -3,7 +3,7 @@
 	let { actions, width = 'w-full max-w-screen-xl', class: className } = $props();
 </script>
 
-<header class="flex w-full items-center justify-center text-black dark:text-white {className}">
+<header class="z-50 flex w-full items-center justify-center text-black dark:text-white {className}">
 	<nav class="flex items-center justify-between py-4 text-sm {width}">
 		<div class="justify-even-10 flex flex-nowrap items-center space-x-10">
 			<a href="/" class="flex flex-nowrap items-center">
