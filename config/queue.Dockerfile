@@ -25,7 +25,7 @@ WORKDIR /app/services/forge-queue
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
     cargo build --release -p forge && \
-    cp /app/target/release/queue /usr/local/bin/queue
+    cp /app/target/release/forge /usr/local/bin/forge
 
 # Runtime stage
 FROM --platform=$TARGETPLATFORM debian:bullseye-slim
@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary from builder
-COPY --from=builder /usr/local/bin/queue /usr/local/bin/queue
+COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
 
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/queue"]
