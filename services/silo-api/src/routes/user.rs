@@ -1,5 +1,5 @@
 use axum::{http::StatusCode, response::IntoResponse, Extension, Json};
-use db::users::User;
+use db::users::{User, UserRole};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -7,6 +7,7 @@ use serde::Serialize;
 struct UserResponse {
     username: String,
     email: String,
+    role: UserRole,
 }
 
 /// Gets a user by their ID
@@ -15,6 +16,7 @@ pub async fn get_user(Extension(user): Extension<Option<User>>) -> impl IntoResp
         Some(user) => Ok(Json(UserResponse {
             username: user.username,
             email: user.email,
+            role: user.role,
         })),
         None => Err(StatusCode::BAD_REQUEST),
     }

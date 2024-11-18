@@ -248,7 +248,7 @@
 		/>
 
 		<!-- Upload UI -->
-		<div class="mt-8 w-full">
+		<div class="flex w-full flex-col space-y-4">
 			<label
 				class="flex cursor-pointer flex-col items-center rounded-lg border border-primary-200 bg-white px-4 py-6 tracking-wide text-primary-800 shadow-lg transition-colors hover:bg-primary-50 dark:border-primary-900 dark:bg-primary-800 dark:text-primary-200 dark:hover:bg-primary-900"
 			>
@@ -275,7 +275,7 @@
 			{#if file}
 				<div class="mt-4 rounded-lg bg-white p-4 shadow dark:bg-primary-900">
 					<p class="font-medium">Selected file: {file.name}</p>
-					<p class="text-sm text-gray-600">Size: {filesize(file.size)}</p>
+					<p class="text-sm">Size: {filesize(file.size)}</p>
 
 					{#if !uploading}
 						<button

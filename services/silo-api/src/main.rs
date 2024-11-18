@@ -7,7 +7,7 @@ use axum::{
     extract::DefaultBodyLimit,
     middleware as axum_mw,
     response::IntoResponse,
-    routing::{get, post},
+    routing::{delete, get, post},
     Router,
 };
 use config::Config;
@@ -17,7 +17,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::{
     cors::CorsLayer,
-    trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
+    trace::{DefaultOnResponse, TraceLayer},
     LatencyUnit,
 };
 use tracing::Level;
@@ -91,6 +91,7 @@ async fn main() {
             "/video",
             Router::new()
                 .route("/", get(routes::video::get_videos))
+                .route("/", delete(routes::video::delete_videos))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,
@@ -107,6 +108,7 @@ async fn main() {
                         method = %request.method(),
                         uri = %request.uri(),
                         path = %request.uri().path(),
+                        query_params = %request.uri().query().unwrap_or_default()
                     )
                 })
                 .on_request(|request: &axum::http::Request<_>, _span: &tracing::Span| {

@@ -40,9 +40,8 @@ export const fetchVideo = async (videoID: string): Promise<Video | null> => {
 					created_at: video.created_at,
 					updated_at: video.updated_at
 				};
-			} else {
-				throw VideoError.NOT_FOUND;
 			}
+			return null;
 		} else {
 			throw VideoError.FETCH_ERROR;
 		}
@@ -54,9 +53,19 @@ export const fetchVideo = async (videoID: string): Promise<Video | null> => {
 	}
 };
 
-export const fetchVideos = async (): Promise<Video[]> => {
+type FetchVideoOpts = {
+	channel?: string; // Username of user usually
+};
+
+export const fetchVideos = async (options?: FetchVideoOpts): Promise<Video[]> => {
 	try {
-		const response = await fetch(`${env.API_URL}/video`);
+		const baseURL = `${env.API_URL}`;
+		const params = new URLSearchParams();
+		if (options?.channel) {
+			params.append('username', options.channel);
+		}
+		const queryString = params.toString();
+		const response = await fetch(`${baseURL}/video?${queryString}`);
 
 		if (response.ok) {
 			const videoData: { videos: RequestedVideo[] } = await response.json();
@@ -69,9 +78,8 @@ export const fetchVideos = async (): Promise<Video[]> => {
 					created_at: video.created_at,
 					updated_at: video.updated_at
 				}));
-			} else {
-				throw VideoError.NOT_FOUND;
 			}
+			return [];
 		} else {
 			throw VideoError.FETCH_ERROR;
 		}
@@ -80,5 +88,20 @@ export const fetchVideos = async (): Promise<Video[]> => {
 			throw e;
 		}
 		throw VideoError.UNKNOWN;
+	}
+};
+
+export const deleteVideos = async (idList: string[], token: string) => {
+	try {
+		const baseURL = `${env.API_URL}`;
+		const serializedIDList = idList.join(',');
+		const res = await fetch(`${baseURL}/video?id=${serializedIDList}`, {
+			method: 'DELETE',
+			headers: {
+				Authorization: `Bearer ${token}`
+			}
+		});
+	} catch (e) {
+		console.error('Error deleting videos', e);
 	}
 };

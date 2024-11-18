@@ -12,6 +12,17 @@ pub struct User {
     pub email: String,
     pub username: String,
     password_hash: String,
+    pub role: UserRole,
+    pub created_at: chrono::NaiveDateTime,
+    pub updated_at: chrono::NaiveDateTime,
+}
+
+#[derive(sqlx::Type, Serialize, Deserialize, Clone)]
+#[sqlx(type_name = "user_role", rename_all = "lowercase")]
+pub enum UserRole {
+    Admin,
+    Creator,
+    Viewer,
 }
 
 pub enum UserError {
@@ -29,6 +40,9 @@ impl User {
             email,
             username,
             password_hash,
+            role: UserRole::Viewer,
+            created_at: chrono::Utc::now().naive_utc(),
+            updated_at: chrono::Utc::now().naive_utc(),
         }
     }
     /// Gets a user from the databased based on Username
@@ -70,12 +84,13 @@ impl User {
     /// Inserts the user into the database
     pub async fn insert(&self, pool: &PgPool) -> Result<&Self, sqlx::Error> {
         sqlx::query(
-            "INSERT INTO users (id, email, username, password_hash) VALUES ($1, $2, $3, $4)",
+            "INSERT INTO users (id, email, username, password_hash, role) VALUES ($1, $2, $3, $4, $5)",
         )
         .bind(&self.id)
         .bind(&self.email)
         .bind(&self.username)
         .bind(&self.password_hash)
+        .bind(&self.role)
         .execute(pool)
         .await?;
 

@@ -21,12 +21,12 @@
 	}
 </script>
 
-<section class="flex flex-col items-center justify-center">
+<section class="flex w-full flex-col items-center justify-center">
 	{#if title || subtitle}
 		<aside class="flex flex-col space-y-4 text-center">
-			<h1 class="font-serif text-3xl text-primary-800">{title}</h1>
+			<h1 class="font-serif text-2xl text-secondary-700 dark:text-primary-500">{title}</h1>
 			{#if subtitle}
-				<p>{subtitle}</p>
+				<p class="text-secondary-800 dark:text-primary-100">{subtitle}</p>
 			{/if}
 		</aside>
 	{/if}
@@ -34,7 +34,7 @@
 	<form
 		method="POST"
 		use:enhance={handleSubmit}
-		class="mt-8 w-full max-w-sm flex-grow rounded border-2 border-secondary-900 bg-white p-6 shadow-md dark:border-black dark:bg-primary-900 dark:shadow-xl"
+		class="mt-8 w-full max-w-sm flex-grow rounded border-2 border-secondary-900 bg-white p-6 shadow-md dark:border-primary-800 dark:bg-primary-900 dark:shadow-xl"
 	>
 		{#if error}
 			<Alert type="error" message={error} />

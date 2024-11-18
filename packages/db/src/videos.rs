@@ -48,8 +48,22 @@ impl Video {
         .fetch_one(pool)
         .await
     }
-    /// A function for fetching video data from the db by video ID
-    pub async fn by_id(pool: &PgPool, video_id: &str) -> Result<Option<Self>, sqlx::Error> {
+    /// A function for fetching multiple videos from the db by video IDs
+    pub async fn by_ids(pool: &PgPool, video_ids: &Vec<String>) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Video>(
+            r#"
+            SELECT id, user_id, title, raw_video_path, processed_video_path,
+                   processing_status, created_at, updated_at
+            FROM videos
+            WHERE id = ANY($1)
+            "#,
+        )
+        .bind(video_ids)
+        .fetch_all(pool)
+        .await
+    }
+    /// A function for fetching a single video from the db by video ID
+    pub async fn by_id(pool: &PgPool, video_id: &str) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, Video>(
             r#"
             SELECT id, user_id, title, raw_video_path, processed_video_path,
@@ -59,7 +73,7 @@ impl Video {
             "#,
         )
         .bind(video_id)
-        .fetch_optional(pool)
+        .fetch_one(pool)
         .await
     }
     /// A function for getting all user owned videos by user ID
@@ -105,5 +119,25 @@ impl Video {
         )
         .fetch_all(pool)
         .await
+    }
+    /// A function for deleting videos by ID
+    /// NOTE: Only a video owner can delete their video
+    pub async fn delete(
+        pool: &PgPool,
+        user_id: Uuid,
+        delete_list: Vec<String>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+                    DELETE FROM videos
+                    WHERE id = ANY($1)
+                    AND user_id = $2
+                    "#,
+        )
+        .bind(delete_list)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+        Ok(())
     }
 }
