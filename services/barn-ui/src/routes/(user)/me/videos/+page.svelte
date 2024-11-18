@@ -61,17 +61,6 @@
 </script>
 
 <section class="grid w-full auto-rows-max items-center space-y-6 p-4">
-	<div
-		class="dark:bg-primary-950/40 rounded-lg border border-primary-200/20 bg-black/40 p-6 text-center backdrop-blur-sm dark:border-primary-800/40"
-	>
-		<p class="text-white/80 dark:text-primary-300/80">You haven't uploaded any videos yet</p>
-		<a
-			href="/upload"
-			class="mt-4 inline-block rounded-md bg-primary-600 px-4 py-2 text-sm text-white hover:bg-primary-700"
-		>
-			Upload a Video
-		</a>
-	</div>
 	<div class="btn-group ml-auto">
 		<form method="POST" onsubmit={handleDelete} action="?/delete">
 			<button class="variant-filled-error" disabled={selected.length === 0}>Delete</button>
