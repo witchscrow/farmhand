@@ -1,8 +1,7 @@
 <script lang="ts">
 	import Table from '$lib/components/Table.svelte';
-	import type { Snippet } from 'svelte';
-
-	function _formatDate(dateString: string) {
+	let { data } = $props();
+	const formatDate = (dateString: string) => {
 		return new Date(dateString).toLocaleDateString('en-US', {
 			year: 'numeric',
 			month: 'long',
@@ -10,18 +9,10 @@
 			hour: '2-digit',
 			minute: '2-digit'
 		});
-	}
+	};
 
 	type VideoID = string;
-	type Video = { id: VideoID; title: string; thumbnail: string };
-	let videos: Video[] = [
-		{ id: 'vid1', title: 'My First Video', thumbnail: '' },
-		{ id: 'vid2', title: 'How to Cook', thumbnail: '' },
-		{ id: 'vid3', title: 'Gaming Tutorial', thumbnail: '' },
-		{ id: 'vid4', title: 'Vacation Vlog', thumbnail: '' },
-		{ id: 'vid5', title: 'Product Review', thumbnail: '' }
-	];
-	const columns = ['ID', 'Thumbnail', 'Title'];
+	const columns = ['ID', 'Thumbnail', 'Title', 'Published'];
 	let selected = $state<VideoID[]>([]);
 	const toggleSelected = (id: VideoID) => {
 		if (selected?.includes(id)) {
@@ -49,7 +40,7 @@
 	</div>
 	<Table {columns}>
 		{#snippet rows()}
-			{#each videos as video}
+			{#each data.videos as video}
 				<tr
 					class={selected.includes(video.id) ? 'table-row-checked' : ''}
 					onclick={() => toggleSelected(video.id)}
@@ -66,6 +57,9 @@
 					</td>
 					<td class="!align-middle">
 						<p>{video.title}</p>
+					</td>
+					<td class="!align-middle">
+						<p>{formatDate(video.created_at)}</p>
 					</td>
 				</tr>
 			{/each}

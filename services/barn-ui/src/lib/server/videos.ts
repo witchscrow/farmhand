@@ -40,9 +40,8 @@ export const fetchVideo = async (videoID: string): Promise<Video | null> => {
 					created_at: video.created_at,
 					updated_at: video.updated_at
 				};
-			} else {
-				throw VideoError.NOT_FOUND;
 			}
+			return null;
 		} else {
 			throw VideoError.FETCH_ERROR;
 		}
@@ -79,9 +78,8 @@ export const fetchVideos = async (options?: FetchVideoOpts): Promise<Video[]> =>
 					created_at: video.created_at,
 					updated_at: video.updated_at
 				}));
-			} else {
-				throw VideoError.NOT_FOUND;
 			}
+			return [];
 		} else {
 			throw VideoError.FETCH_ERROR;
 		}

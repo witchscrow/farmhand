@@ -1,9 +1,14 @@
 import type { PageServerLoad } from './$types';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
+import { fetchVideos } from '$lib/server/videos';
 
-export const load = (async () => {
+export const load = (async ({ locals }) => {
 	try {
-		// TODO: Get initial table data
+		if (!locals.user) throw redirect(307, '/login');
+		const videos = await fetchVideos({ channel: locals.user.username });
+		return {
+			videos
+		};
 	} catch (e) {
 		throw error(500, `Error fetching videos: ${e}`);
 	}
