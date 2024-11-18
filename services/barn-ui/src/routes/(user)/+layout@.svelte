@@ -5,6 +5,7 @@
 	import Footer from '$lib/components/Footer.svelte';
 	import MyAccount from '$lib/components/MyAccount.svelte';
 	import ThemeToggler from '$lib/components/ThemeToggler.svelte';
+	import Button from '$lib/components/Button.svelte';
 
 	let { children, data }: { children: Snippet; data: LayoutServerData } = $props();
 </script>
@@ -16,6 +17,7 @@
 	>
 		{#snippet actions()}
 			<nav class="mr-4 flex justify-evenly space-x-4">
+				<Button variant="secondary" href="/upload">Upload</Button>
 				<MyAccount user={data.user} />
 				<ThemeToggler />
 			</nav>
@@ -24,7 +26,16 @@
 	<aside
 		class="col-span-2 row-start-2 min-h-max border-primary-200/20 bg-black/40 p-4 backdrop-blur-sm dark:border-primary-800/40"
 	>
-		This is where the sidebar goes
+		<nav>
+			<ul>
+				<li>
+					<a href="/me/videos">My Videos</a>
+				</li>
+				<li>
+					<a href="/upload">Upload</a>
+				</li>
+			</ul>
+		</nav>
 	</aside>
 	<section
 		class="col-span-10 row-start-2 mx-auto min-h-full w-full flex-grow border-primary-200/20 bg-black/40 p-4 backdrop-blur-sm dark:border-primary-800/40"

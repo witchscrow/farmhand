@@ -33,7 +33,7 @@
 	{/snippet}
 	{#snippet content()}
 		<div
-			class="divide z-20 min-w-52 divide-y-2 divide-primary-900 rounded border-2 border-primary-700 bg-primary-800 shadow-xl"
+			class="divide mr-8 divide-y-2 divide-primary-900 rounded border-2 border-primary-700 bg-primary-800 shadow-xl"
 		>
 			<aside class="flex flex-col items-start px-6 py-4 text-primary-50 dark:text-white">
 				<p class="text-xs font-medium">Signed in as</p>
