@@ -41,4 +41,4 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
 
 # Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/queue"]
+ENTRYPOINT ["/usr/local/bin/forge"]
