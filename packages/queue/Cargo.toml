@@ -22,3 +22,4 @@ tracing = "0.1"
 ulid = { version = "1", features = ["uuid"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 vod = { path = "../../packages/vod" }
+zip = "0.6"
