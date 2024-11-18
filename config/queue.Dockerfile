@@ -24,7 +24,7 @@ COPY services/silo-api ./services/silo-api
 WORKDIR /app/services/forge-queue
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
-    cargo build --release && \
+    cargo build --release -p forge && \
     cp /app/target/release/queue /usr/local/bin/queue
 
 # Runtime stage
