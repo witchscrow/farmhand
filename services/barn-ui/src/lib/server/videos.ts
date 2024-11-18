@@ -95,7 +95,7 @@ export const deleteVideos = async (idList: string[], token: string) => {
 	try {
 		const baseURL = `${env.API_URL}`;
 		const serializedIDList = idList.join(',');
-		const res = await fetch(`${baseURL}/video?id=${serializedIDList}`, {
+		await fetch(`${baseURL}/video?id=${serializedIDList}`, {
 			method: 'DELETE',
 			headers: {
 				Authorization: `Bearer ${token}`
