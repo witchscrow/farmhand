@@ -35,6 +35,7 @@ pub struct Job {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
     ProcessRawVideoIntoStream { video_id: String },
+    CompressRawVideo { video_id: String },
 }
 
 /// The queue itself
@@ -94,12 +95,28 @@ impl Queue for PostgresQueue {
 
     async fn fail_job(&self, job_id: Uuid) -> Result<(), Error> {
         let now = chrono::Utc::now();
+
+        // First get the current failed_attempts count
+        let query = "SELECT failed_attempts FROM queue WHERE id = $1";
+        let failed_attempts: i32 = sqlx::query_scalar(query)
+            .bind(job_id)
+            .fetch_one(&self.db)
+            .await?;
+
+        // Determine the new status based on failed attempts
+        let new_status = if failed_attempts + 1 >= self.max_attempts as i32 {
+            PostgresJobStatus::Failed
+        } else {
+            PostgresJobStatus::Queued
+        };
+
+        // Update the job with new status and increment failed_attempts
         let query = "UPDATE queue
             SET status = $1, updated_at = $2, failed_attempts = failed_attempts + 1
             WHERE id = $3";
 
         sqlx::query(query)
-            .bind(PostgresJobStatus::Queued)
+            .bind(new_status)
             .bind(now)
             .bind(job_id)
             .execute(&self.db)

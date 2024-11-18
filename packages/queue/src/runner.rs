@@ -52,6 +52,7 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
     match job.message {
         Message::ProcessRawVideoIntoStream { video_id } => {
             tracing::info!("Start video processing for video_id {video_id}");
+
             // Update video status to Processing
             sqlx::query(
                 "UPDATE videos SET processing_status = 'processing', updated_at = NOW() WHERE id = $1"
@@ -69,6 +70,7 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
             // Create output directory
             let output_dir = PathBuf::from(get_videos_dir()).join(&video_id.to_string());
             let ffmpeg_location = get_ffmpeg_location();
+
             // Initialize HLS converter
             let converter = HLSConverter::new(
                 ffmpeg_location.as_str(),
@@ -86,41 +88,27 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
             ];
 
             // Process the video
-            match converter.convert_to_hls(&video.raw_video_path, qualities) {
-                Ok(_) => {
-                    // Update with success status
-                    let master_playlist_path = output_dir.join("master.m3u8");
-                    sqlx::query(
-                        "UPDATE videos SET
-                            processing_status = 'completed',
-                            processed_video_path = $1,
-                            updated_at = NOW()
-                        WHERE id = $2",
-                    )
-                    .bind(master_playlist_path.to_str().unwrap())
-                    .bind(&video_id)
-                    .execute(db)
-                    .await?;
+            converter
+                .convert_to_hls(&video.raw_video_path, qualities)
+                .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
 
-                    tracing::info!("Successfully processed video {}", &video_id);
-                }
-                Err(e) => {
-                    // Update with failed status
-                    sqlx::query(
-                        "UPDATE videos SET
-                            processing_status = 'failed',
-                            updated_at = NOW()
-                        WHERE id = $1",
-                    )
-                    .bind(&video_id)
-                    .execute(db)
-                    .await?;
+            // Update with success status
+            let master_playlist_path = output_dir.join("master.m3u8");
+            sqlx::query(
+                "UPDATE videos SET
+                    processing_status = 'completed',
+                    processed_video_path = $1,
+                    updated_at = NOW()
+                WHERE id = $2",
+            )
+            .bind(master_playlist_path.to_str().unwrap())
+            .bind(&video_id)
+            .execute(db)
+            .await?;
 
-                    tracing::error!("Failed to process video {}: {}", &video_id, e);
-                    return Err(Error::VideoProcessingError(e.to_string()));
-                }
-            }
+            tracing::info!("Successfully processed video {}", &video_id);
         }
+        _ => tracing::warn!("Unhandled job message passed"),
     }
 
     Ok(())
