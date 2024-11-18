@@ -68,6 +68,13 @@
 	</div>
 	<Table {columns}>
 		{#snippet rows()}
+			{#if data.videos.length === 0}
+				<tr>
+					<td colspan="4" class="text-center">
+						<p class="p-4 dark:text-surface-100">No videos found</p>
+					</td>
+				</tr>
+			{/if}
 			{#each data.videos as video}
 				<tr
 					class="relative {selected.includes(video.id)
@@ -86,11 +93,13 @@
 					</td>
 					<td class={isVideoLoading(video.id) ? 'opacity-50' : ''}>
 						<div class="h-[95px] w-[170px] bg-surface-900">
-							<img
-								src="http://placeskull.com/170/95"
-								alt="Temporary skull placeholder for thumbnail"
-								class="w-min"
-							/>
+							<a href="/watch?v={video.id}">
+								<img
+									src="http://placeskull.com/170/95"
+									alt="Temporary skull placeholder for thumbnail"
+									class="w-min"
+								/>
+							</a>
 						</div>
 					</td>
 					<td class="!align-middle {isVideoLoading(video.id) ? 'opacity-50' : ''}">

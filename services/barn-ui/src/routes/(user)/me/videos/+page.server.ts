@@ -1,6 +1,6 @@
 import type { PageServerLoad, Actions } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { fetchVideos } from '$lib/server/videos';
+import { deleteVideos, fetchVideos } from '$lib/server/videos';
 
 export const load = (async ({ locals }) => {
 	try {
@@ -18,8 +18,8 @@ export const actions = {
 	delete: async ({ request, cookies }) => {
 		const data = await request.formData();
 		const videoIDListToDelete = data.getAll('video_delete_id_list') as string[];
-		console.log('videos to delete', videoIDListToDelete);
-		// TODO: Get JWT from cookies
-		// TODO: Post delete request to api
+		const token = cookies.get('jwt');
+		if (!token) throw redirect(307, '/login');
+		await deleteVideos(videoIDListToDelete, token);
 	}
 } satisfies Actions;

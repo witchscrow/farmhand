@@ -90,3 +90,18 @@ export const fetchVideos = async (options?: FetchVideoOpts): Promise<Video[]> =>
 		throw VideoError.UNKNOWN;
 	}
 };
+
+export const deleteVideos = async (idList: string[], token: string) => {
+	try {
+		const baseURL = `${env.API_URL}`;
+		const serializedIDList = idList.join(',');
+		const res = await fetch(`${baseURL}/video?id=${serializedIDList}`, {
+			method: 'DELETE',
+			headers: {
+				Authorization: `Bearer ${token}`
+			}
+		});
+	} catch (e) {
+		console.error('Error deleting videos', e);
+	}
+};
