@@ -12,6 +12,7 @@ pub trait Queue: Send + Sync + Debug {
     async fn push(
         &self,
         job: Message,
+        status: PostgresJobStatus,
         scheduled_for: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<(), Error>;
     /// pull fetches at most `number_of_jobs` from the queue.
@@ -35,6 +36,7 @@ pub struct Job {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Message {
     ProcessRawVideoIntoStream { video_id: String },
+    CompressRawVideo { video_id: String },
 }
 
 /// The queue itself
@@ -60,18 +62,23 @@ impl Queue for PostgresQueue {
     async fn push(
         &self,
         job: Message,
+        status: PostgresJobStatus,
         date: Option<chrono::DateTime<chrono::Utc>>,
     ) -> Result<(), Error> {
         let scheduled_for = date.unwrap_or(chrono::Utc::now());
         let failed_attempts: i32 = 0;
         let message = Json(job);
-        let status = PostgresJobStatus::Queued;
         let now = chrono::Utc::now();
         let job_id: Uuid = Ulid::new().into();
         let query = "INSERT INTO queue
             (id, created_at, updated_at, scheduled_for, failed_attempts, status, message)
             VALUES ($1, $2, $3, $4, $5, $6, $7)";
-
+        tracing::debug!(
+            "Adding job to queue with id: {}, status: {:?}, scheduled_for: {}",
+            job_id,
+            status,
+            scheduled_for
+        );
         sqlx::query(query)
             .bind(job_id)
             .bind(now)
@@ -94,12 +101,34 @@ impl Queue for PostgresQueue {
 
     async fn fail_job(&self, job_id: Uuid) -> Result<(), Error> {
         let now = chrono::Utc::now();
+
+        // First get the current failed_attempts count
+        let query = "SELECT failed_attempts FROM queue WHERE id = $1";
+        let failed_attempts: i32 = sqlx::query_scalar(query)
+            .bind(job_id)
+            .fetch_one(&self.db)
+            .await?;
+
+        tracing::debug!(
+            "Failing job with id: {}, attempt {} of {}",
+            job_id,
+            failed_attempts + 1,
+            self.max_attempts
+        );
+        // Determine the new status based on failed attempts
+        let new_status = if failed_attempts + 1 >= self.max_attempts as i32 {
+            PostgresJobStatus::Failed
+        } else {
+            PostgresJobStatus::Queued
+        };
+
+        // Update the job with new status and increment failed_attempts
         let query = "UPDATE queue
             SET status = $1, updated_at = $2, failed_attempts = failed_attempts + 1
             WHERE id = $3";
 
         sqlx::query(query)
-            .bind(PostgresJobStatus::Queued)
+            .bind(new_status)
             .bind(now)
             .bind(job_id)
             .execute(&self.db)
@@ -119,7 +148,7 @@ impl Queue for PostgresQueue {
             WHERE id IN (
                 SELECT id
                 FROM queue
-                WHERE status = $3 AND scheduled_for <= $4 AND failed_attempts < $5
+                WHERE status = ANY($3) AND scheduled_for <= $4 AND failed_attempts < $5
                 ORDER BY scheduled_for
                 FOR UPDATE SKIP LOCKED
                 LIMIT $6
@@ -129,12 +158,13 @@ impl Queue for PostgresQueue {
         let jobs: Vec<PostgresJob> = sqlx::query_as::<_, PostgresJob>(query)
             .bind(PostgresJobStatus::Running)
             .bind(now)
-            .bind(PostgresJobStatus::Queued)
+            .bind(vec![PostgresJobStatus::Queued])
             .bind(now)
             .bind(self.max_attempts as i32)
             .bind(number_of_jobs)
             .fetch_all(&self.db)
             .await?;
+
         Ok(jobs.into_iter().map(Into::into).collect())
     }
 
