@@ -114,14 +114,14 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
             .await?;
 
             // After completed, queue up a Compress Raw Video job
-            let scheduled_time = chrono::Utc::now() + chrono::Duration::days(7);
+            let scheduled_time = chrono::Utc::now() + chrono::Duration::days(1);
             queue
                 .push(
                     Message::CompressRawVideo {
                         video_id: video_id.clone(),
                     },
                     PostgresJobStatus::Queued,
-                    Some(scheduled_time), // TODO: Uncomment after testing
+                    Some(scheduled_time),
                 )
                 .await?;
 
