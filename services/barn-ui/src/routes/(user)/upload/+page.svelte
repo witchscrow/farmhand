@@ -17,6 +17,16 @@
 	const MAX_RETRIES = 3;
 	const COMPRESSION_THRESHOLD = 5 * 1024 * 1024; // 5MB
 
+	function resetState() {
+		file = null;
+		progress = 0;
+		uploading = false;
+		paused = false;
+		abortController = null;
+		errorMessage = null;
+		successMessage = null;
+	}
+
 	async function calculateChecksum(chunk: Blob): Promise<string> {
 		const arrayBuffer = await chunk.arrayBuffer();
 		const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
@@ -182,6 +192,8 @@
 				uploading = false;
 				progress = 100;
 				successMessage = `Successfully uploaded ${selectedFile.name}`;
+				// Clear the file after successful upload
+				file = null;
 			}
 		} catch (error) {
 			console.error('Upload error:', error);
@@ -191,10 +203,14 @@
 				} else {
 					errorMessage = error.message;
 					uploading = false;
+					// Clear the file on error
+					file = null;
 				}
 			} else {
 				errorMessage = 'An unknown error occurred';
 				uploading = false;
+				// Clear the file on error
+				file = null;
 			}
 		}
 	}
@@ -202,6 +218,7 @@
 	function handleFileSelect(event: Event) {
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files[0]) {
+			resetState();
 			const selectedFile = input.files[0];
 			if (!selectedFile.type.startsWith('video/')) {
 				errorMessage = 'Please select a video file';
