@@ -366,6 +366,7 @@ pub async fn upload_video(
                             .queue
                             .push(
                                 process_video_message,
+                                queue::job::PostgresJobStatus::Queued,
                                 None, // Schedule for immediate processing
                             )
                             .await

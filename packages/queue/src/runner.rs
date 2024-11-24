@@ -1,4 +1,5 @@
 use crate::error::Error;
+use crate::job::PostgresJobStatus;
 use crate::queue::{Job, Message, Queue};
 use db::Video;
 use futures::{stream, StreamExt};
@@ -34,7 +35,7 @@ pub async fn run_worker(queue: Arc<dyn Queue>, concurrency: usize, db_conn: &Poo
                 tracing::debug!("Starting job {}", job.id);
                 let job_id = job.id;
 
-                let res = match handle_job(job, db_conn).await {
+                let res = match handle_job(queue.clone(), job, db_conn).await {
                     Ok(_) => queue.delete_job(job_id).await,
                     Err(err) => {
                         tracing::error!("run_worker: handling job({}): {}", job_id, &err);
@@ -53,7 +54,8 @@ pub async fn run_worker(queue: Arc<dyn Queue>, concurrency: usize, db_conn: &Poo
 }
 
 /// Individually processes a single job, based on its Job message type
-async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
+async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
+    tracing::debug!("Got job of type {:?}", &job.message);
     match job.message {
         Message::ProcessRawVideoIntoStream { video_id } => {
             tracing::info!("Start video processing for video_id {video_id}");
@@ -111,81 +113,134 @@ async fn handle_job(job: Job, db: &Pool<Postgres>) -> Result<(), Error> {
             .execute(db)
             .await?;
 
-            tracing::info!("Successfully processed video {}", &video_id);
+            // After completed, queue up a Compress Raw Video job
+            let scheduled_time = chrono::Utc::now() + chrono::Duration::days(7);
+            queue
+                .push(
+                    Message::CompressRawVideo {
+                        video_id: video_id.clone(),
+                    },
+                    PostgresJobStatus::Queued,
+                    // Some(scheduled_time), // TODO: Uncomment after testing
+                    None,
+                )
+                .await?;
+
+            tracing::info!(
+                "Successfully processed video {} and queued compression job",
+                &video_id
+            );
         }
         Message::CompressRawVideo { video_id } => {
             tracing::info!("Start video compression for video_id {video_id}");
 
-            // Update video compression status
+            // Update video compression status to compressing
             sqlx::query(
-                    "UPDATE videos SET compression_status = 'compressing', updated_at = NOW() WHERE id = $1"
-                )
-                .bind(&video_id)
-                .execute(db)
-                .await?;
-
-            // Get video details
-            let video = sqlx::query_as::<_, Video>("SELECT * FROM videos WHERE id = $1")
-                .bind(&video_id)
-                .fetch_one(db)
-                .await?;
-
-            // Create output directory if it doesn't exist
-            let videos_dir = PathBuf::from(get_videos_dir());
-            fs::create_dir_all(&videos_dir)
-                .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
-
-            let zip_path = videos_dir.join(format!("{}_raw.zip", video_id));
-            let mut zip = ZipWriter::new(
-                fs::File::create(&zip_path)
-                    .map_err(|e| Error::VideoProcessingError(e.to_string()))?,
-            );
-
-            let raw_video_path = PathBuf::from(&video.raw_video_path);
-            let file_name = raw_video_path
-                .file_name()
-                .ok_or_else(|| Error::VideoProcessingError("Invalid raw video path".to_string()))?
-                .to_string_lossy()
-                .into_owned();
-
-            zip.start_file(&file_name, FileOptions::default())
-                .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
-
-            // Read the file in chunks
-            let mut file = File::open(&raw_video_path)
-                .await
-                .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
-            let mut buffer = vec![0; 1024 * 1024]; // 1MB chunks
-
-            loop {
-                let n = file
-                    .read(&mut buffer)
-                    .await
-                    .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
-                if n == 0 {
-                    break;
-                }
-                zip.write_all(&buffer[..n])
-                    .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
-            }
-
-            zip.finish()
-                .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
-
-            // Update the video record with the compressed file path
-            sqlx::query(
-                "UPDATE videos SET
-                        compression_status = 'completed',
-                        compressed_video_path = $1,
-                        updated_at = NOW()
-                    WHERE id = $2",
+                "UPDATE videos SET compression_status = 'compressing', updated_at = NOW() WHERE id = $1"
             )
-            .bind(zip_path.to_str().unwrap())
             .bind(&video_id)
             .execute(db)
             .await?;
 
-            tracing::info!("Successfully compressed video {}", &video_id);
+            // Wrap the compression logic in a result to handle failures
+            let compression_result = async {
+                // Get video details
+                let video = sqlx::query_as::<_, Video>("SELECT * FROM videos WHERE id = $1")
+                    .bind(&video_id)
+                    .fetch_one(db)
+                    .await?;
+
+                // Create video-specific directory if it doesn't exist
+                let videos_dir = PathBuf::from(get_videos_dir());
+                let video_dir = videos_dir.join(&video_id.to_string());
+                fs::create_dir_all(&video_dir)
+                    .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
+
+                let zip_path = video_dir.join("raw.zip");
+                let mut zip = ZipWriter::new(
+                    fs::File::create(&zip_path)
+                        .map_err(|e| Error::VideoProcessingError(e.to_string()))?,
+                );
+
+                let raw_video_path = PathBuf::from(&video.raw_video_path);
+                let file_name = raw_video_path
+                    .file_name()
+                    .ok_or_else(|| {
+                        Error::VideoProcessingError("Invalid raw video path".to_string())
+                    })?
+                    .to_string_lossy()
+                    .into_owned();
+
+                zip.start_file(&file_name, FileOptions::default())
+                    .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
+
+                // Read the file in chunks
+                let mut file = File::open(&raw_video_path)
+                    .await
+                    .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
+                let mut buffer = vec![0; 1024 * 1024]; // 1MB chunks
+
+                loop {
+                    let n = file
+                        .read(&mut buffer)
+                        .await
+                        .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
+                    if n == 0 {
+                        break;
+                    }
+                    zip.write_all(&buffer[..n])
+                        .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
+                }
+
+                zip.finish()
+                    .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
+
+                // Close file handle before trying to remove
+                drop(file);
+
+                // Remove the original raw video file
+                tokio::fs::remove_file(&raw_video_path).await.map_err(|e| {
+                    Error::VideoProcessingError(format!("Failed to remove raw video: {}", e))
+                })?;
+
+                Ok::<PathBuf, Error>(zip_path)
+            }
+            .await;
+
+            match compression_result {
+                Ok(zip_path) => {
+                    // Update the video record with success status and compressed file path
+                    sqlx::query(
+                        "UPDATE videos SET
+                                    compression_status = 'completed',
+                                    compressed_video_path = $1,
+                                    raw_video_path = NULL,
+                                    updated_at = NOW()
+                                WHERE id = $2",
+                    )
+                    .bind(zip_path.to_str().unwrap())
+                    .bind(&video_id)
+                    .execute(db)
+                    .await?;
+
+                    tracing::info!("Successfully compressed video {}", &video_id);
+                }
+                Err(err) => {
+                    // Update the video record with failed status
+                    sqlx::query(
+                        "UPDATE videos SET
+                                    compression_status = 'failed',
+                                    updated_at = NOW()
+                                WHERE id = $1",
+                    )
+                    .bind(&video_id)
+                    .execute(db)
+                    .await?;
+
+                    tracing::error!("Failed to compress video {}: {}", &video_id, err);
+                    return Err(err);
+                }
+            }
         }
         _ => tracing::warn!("Unhandled job message passed"),
     }

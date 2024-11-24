@@ -53,10 +53,6 @@ async fn main() {
         .expect("Could not connect to database");
     // Initialize the queue
     let queue = Arc::new(PostgresQueue::new(db.clone()));
-    // Run migrations
-    let _mig = db::run_migrations(&db)
-        .await
-        .expect("Could not run database migrations");
     // Store shared data as state between routes
     let state = Arc::new(AppState { db, config, queue });
     routes::upload::init_cleanup().await;
