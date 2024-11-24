@@ -121,8 +121,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
                         video_id: video_id.clone(),
                     },
                     PostgresJobStatus::Queued,
-                    // Some(scheduled_time), // TODO: Uncomment after testing
-                    None,
+                    Some(scheduled_time), // TODO: Uncomment after testing
                 )
                 .await?;
 
