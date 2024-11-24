@@ -100,10 +100,6 @@ impl Queue for PostgresQueue {
     }
 
     async fn fail_job(&self, job_id: Uuid) -> Result<(), Error> {
-        tracing::debug!(
-            "Failing job with id: {}, attempting to update status and increment failed attempts",
-            job_id
-        );
         let now = chrono::Utc::now();
 
         // First get the current failed_attempts count
@@ -113,6 +109,12 @@ impl Queue for PostgresQueue {
             .fetch_one(&self.db)
             .await?;
 
+        tracing::debug!(
+            "Failing job with id: {}, attempt {} of {}",
+            job_id,
+            failed_attempts + 1,
+            self.max_attempts
+        );
         // Determine the new status based on failed attempts
         let new_status = if failed_attempts + 1 >= self.max_attempts as i32 {
             PostgresJobStatus::Failed
