@@ -1,8 +1,14 @@
 <script lang="ts">
-	export let type: 'error' | 'success' | 'warning' | 'info' = 'info';
-	export let message: string;
-	export let size: 'normal' | 'small' = 'normal';
+	type AlertType = 'error' | 'success' | 'warning' | 'info';
+	type AlertSize = 'normal' | 'small';
 
+	interface Props {
+		class: string;
+		message: string;
+		type?: AlertType;
+		size?: AlertSize;
+	}
+	let { class: className, message, type = 'info', size = 'normal' }: Props = $props();
 	const styles = {
 		error: {
 			wrapper: 'bg-red-100 border-2 border-red-300 dark:bg-red-900/75 dark:border-red-600',
@@ -31,9 +37,8 @@
 </script>
 
 <div
-	class="flex items-center justify-center rounded-md {size === 'small'
-		? 'p-2'
-		: 'p-4'} text-center {styles[type].wrapper}"
+	class="flex items-center justify-center rounded-md p-2 text-center {styles[type]
+		.wrapper} {className}"
 >
 	<div class="flex-shrink-0">
 		{#if type === 'error'}
@@ -91,7 +96,7 @@
 		{/if}
 	</div>
 	<div class="ml-3">
-		<p class="{size === 'small' ? 'text-xs' : 'text-sm'} font-medium {styles[type].text}">
+		<p class="text-xs font-medium {styles[type].text}">
 			{message}
 		</p>
 	</div>

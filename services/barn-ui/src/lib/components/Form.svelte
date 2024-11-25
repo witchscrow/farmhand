@@ -37,7 +37,7 @@
 		class="mt-8 w-full max-w-sm flex-grow rounded border-2 border-secondary-900 bg-white p-6 shadow-md dark:border-primary-800 dark:bg-primary-900 dark:shadow-xl"
 	>
 		{#if error}
-			<Alert type="error" message={error} />
+			<Alert type="error" message={error} class="mb-4" />
 		{/if}
 
 		<slot />

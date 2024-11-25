@@ -36,29 +36,75 @@ pub struct ErrorResponse {
 pub async fn register(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<RegisterRequest>,
-) -> impl IntoResponse {
+) -> Result<Json<AuthResponse>, (StatusCode, Json<ErrorResponse>)> {
     // Validate inputs
     if payload.password != payload.password_confirmation {
-        return Err(StatusCode::BAD_REQUEST);
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                message: "Passwords do not match".to_string(),
+            }),
+        ));
     }
 
     if payload.username.is_empty() || payload.email.is_empty() || payload.password.is_empty() {
-        return Err(StatusCode::BAD_REQUEST);
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                message: "All fields are required".to_string(),
+            }),
+        ));
     }
 
     // Create a new user
     let mut user = User::new(payload.email, payload.username, payload.password);
     // Make sure to hash the password
-    user.hash_password()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    user.hash_password().map_err(|_| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(ErrorResponse {
+                message: "Failed to process password".to_string(),
+            }),
+        )
+    })?;
+
     // Insert the new user into the database
     match user.insert(&state.db).await {
         Ok(user) => {
-            let token =
-                encode_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            let token = encode_jwt(&user.id.to_string()).map_err(|_| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(ErrorResponse {
+                        message: "Failed to generate authentication token".to_string(),
+                    }),
+                )
+            })?;
             Ok(Json(AuthResponse { token }))
         }
-        Err(_e) => Err(StatusCode::BAD_REQUEST),
+        Err(e) => {
+            if e.as_database_error()
+                .and_then(|e| e.code())
+                .filter(|c| c == "23505")
+                .is_some()
+            {
+                // non-unique error
+                tracing::error!("Non-unique user registration error: {e}");
+                return Err((
+                    StatusCode::CONFLICT,
+                    Json(ErrorResponse {
+                        message: "Username or email is already registered".to_string(),
+                    }),
+                ));
+            }
+            // Other db error
+            tracing::error!("Database error during registration: {e}");
+            Err((
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    message: "An unexpected error occurred".to_string(),
+                }),
+            ))
+        }
     }
 }
 
