@@ -6,3 +6,5 @@ members = [
     "services/forge-queue",
     "services/silo-api",
 ]
+
+resolver = "2"

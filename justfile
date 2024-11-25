@@ -118,7 +118,8 @@ sync-web:
 clean:
     cargo clean
     rm -rf node_modules
-    docker rmi forge-queue || true
+    rm -rf uploads
+    rm -rf videos
 
 # Verification commands
 verify:
@@ -132,3 +133,18 @@ dev: dev-web dev-api dev-queue
 
 # Build all services
 build: build-web build-api build-queue
+
+# Nuke all data
+nuke:
+    @just drop-db
+    @just clean
+
+# Install all dependencies
+# TODO: Install ffmpeg dependency
+install:
+    yarn
+    cargo check
+
+init:
+    @just install
+    @just init-db
