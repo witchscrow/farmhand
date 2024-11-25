@@ -3,12 +3,12 @@
 	type AlertSize = 'normal' | 'small';
 
 	interface Props {
-		class: string;
+		class?: string;
 		message: string;
 		type?: AlertType;
 		size?: AlertSize;
 	}
-	let { class: className, message, type = 'info', size = 'normal' }: Props = $props();
+	let { class: className = '', message, type = 'info', size = 'normal' }: Props = $props();
 	const styles = {
 		error: {
 			wrapper: 'bg-red-100 border-2 border-red-300 dark:bg-red-900/75 dark:border-red-600',
