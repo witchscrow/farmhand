@@ -10,8 +10,8 @@ struct UserResponse {
     role: UserRole,
 }
 
-/// Gets a user by their ID
-pub async fn get_user(Extension(user): Extension<Option<User>>) -> impl IntoResponse {
+/// Gets the owner of the token used to authenticate
+pub async fn get_self(Extension(user): Extension<Option<User>>) -> impl IntoResponse {
     match user {
         Some(user) => Ok(Json(UserResponse {
             username: user.username,

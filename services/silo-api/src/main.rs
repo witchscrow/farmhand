@@ -68,7 +68,7 @@ async fn main() {
         .nest(
             "/user",
             Router::new()
-                .route("/me", get(routes::user::get_user))
+                .route("/me", get(routes::user::get_self))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,
