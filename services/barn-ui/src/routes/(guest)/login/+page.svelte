@@ -1,17 +1,19 @@
 <script lang="ts">
 	import Form from '$lib/components/Form.svelte';
 	import Input from '$lib/components/Input.svelte';
-	import type { ActionResult } from '@sveltejs/kit';
-	export let form: ActionResult;
+	import LoginWithButton from '$lib/components/LoginWithButton.svelte';
+	import type { ActionData } from './$types';
+	let { form }: { form: ActionData } = $props();
 </script>
 
-<Form
-	title="Login"
-	subtitle="Login to your farmhand account"
-	submitText="Login"
-	loadingText="Logging in..."
-	error={form?.error}
->
-	<Input label="Username" name="username" type="text" value={form?.username ?? ''} />
-	<Input label="Password" name="password" type="password" />
-</Form>
+<section class="flex flex-col items-center space-y-4">
+	<aside class="flex flex-col space-y-4 text-center">
+		<h1 class="font-serif text-2xl text-secondary-700 dark:text-primary-500">Login</h1>
+		<p class="text-secondary-800 dark:text-primary-100">Login to your farmhand account</p>
+	</aside>
+	<LoginWithButton brand="twitch" />
+	<Form submitText="Login" loadingText="Logging in..." error={form?.error}>
+		<Input label="Username" name="username" type="text" value={form?.username ?? ''} />
+		<Input label="Password" name="password" type="password" />
+	</Form>
+</section>
