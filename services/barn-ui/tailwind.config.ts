@@ -15,6 +15,9 @@ export default {
 	],
 	theme: {
 		extend: {
+			colors: {
+				'brand-twitch': '#9146FF'
+			},
 			gridTemplateRows: {
 				main: 'min-content 1fr min-content'
 			}
