@@ -6,7 +6,7 @@ export enum UserError {
 	UNKNOWN = 'UNKNOWN'
 }
 
-export const getUser = async (token: string): Promise<User | null> => {
+export const getTokenIdentity = async (token: string): Promise<User | null> => {
 	try {
 		// Fetch user data from your API
 		const response = await fetch(`${env.API_URL}/user/me`, {
