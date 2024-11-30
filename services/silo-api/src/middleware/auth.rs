@@ -46,7 +46,7 @@ pub async fn auth_middleware(
         StatusCode::BAD_REQUEST
     })?;
     // Get the users data from the token
-    let user = User::from_id(user_id, &state.db).await.map_err(|e| {
+    let user = User::by_id(user_id, &state.db).await.map_err(|e| {
         tracing::error!("Could not get user from database in middleware {e}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;

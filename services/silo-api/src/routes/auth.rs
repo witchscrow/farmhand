@@ -126,19 +126,15 @@ pub async fn login(
     let mut user: Option<User> = None;
     // If the username is provided, it supercedes the email
     if let Some(username) = payload.username {
-        user = Some(
-            User::from_username(username, &state.db)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Error getting user by username {e}");
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?,
-        );
+        user = Some(User::by_username(username, &state.db).await.map_err(|e| {
+            tracing::error!("Error getting user by username {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?);
     }
     // Otherwise, we use the email
     if let Some(email) = payload.email {
         user = Some(
-            User::from_email(email, &state.db)
+            User::by_email(email, &state.db)
                 .await
                 .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?,
         )
