@@ -46,24 +46,30 @@ impl User {
         }
     }
     /// Gets a user from the databased based on Username
-    pub async fn from_username(username: String, pool: &PgPool) -> Result<Self, sqlx::Error> {
+    pub async fn by_username(username: String, pool: &PgPool) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
             .bind(username)
             .fetch_one(pool)
             .await
     }
     /// Gets a user from the database based on ID
-    pub async fn from_id(id: Uuid, pool: &PgPool) -> Result<Self, sqlx::Error> {
+    pub async fn by_id(id: Uuid, pool: &PgPool) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE id = $1")
             .bind(id)
             .fetch_one(pool)
             .await
     }
     /// Gets a user from the databased based on Email
-    pub async fn from_email(email: String, pool: &PgPool) -> Result<Self, sqlx::Error> {
+    pub async fn by_email(email: String, pool: &PgPool) -> Result<Self, sqlx::Error> {
         sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
             .bind(email)
             .fetch_one(pool)
+            .await
+    }
+    /// Gets all users from the database
+    pub async fn all(pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, User>("SELECT * FROM users")
+            .fetch_all(pool)
             .await
     }
     /// Checks that the raw password matches the expected-to-be-hashed password
