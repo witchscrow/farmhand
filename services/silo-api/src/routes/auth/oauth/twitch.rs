@@ -1,6 +1,6 @@
 use axum::{
     extract::{Query, State},
-    http::{Response, StatusCode},
+    http::StatusCode,
     response::Redirect,
     Extension,
 };
