@@ -1,6 +1,7 @@
 use axum::{
     extract::{Query, State},
     http::{Response, StatusCode},
+    response::Redirect,
     Extension,
 };
 use chrono::{Duration, Utc};
@@ -141,13 +142,9 @@ impl TwitchCredentials {
     }
 }
 
-pub async fn oauth_redirect() -> Result<Response<()>, StatusCode> {
+pub async fn oauth_redirect() -> Result<Redirect, StatusCode> {
     match TwitchCredentials::from_env() {
-        Ok(creds) => Ok(Response::builder()
-            .status(StatusCode::FOUND)
-            .header("Location", creds.generate_oauth_url())
-            .body(())
-            .unwrap()),
+        Ok(creds) => Ok(Redirect::to(&creds.generate_oauth_url())),
         Err(_e) => {
             tracing::error!("Failed to initialize Twitch OAuth: {}", _e);
             Err(StatusCode::INTERNAL_SERVER_ERROR)
@@ -159,7 +156,7 @@ pub async fn oauth_callback(
     State(state): State<Arc<AppState>>,
     Extension(current_user): Extension<Option<User>>,
     Query(params): Query<TwitchCallback>,
-) -> Result<Response<()>, StatusCode> {
+) -> Result<Redirect, StatusCode> {
     // Initialize Twitch credentials
     let credentials = match TwitchCredentials::from_env() {
         Ok(creds) => creds,
@@ -261,9 +258,5 @@ pub async fn oauth_callback(
     }
 
     // Redirect to dashboard
-    Ok(Response::builder()
-        .status(StatusCode::FOUND)
-        .header("Location", "/dashboard")
-        .body(())
-        .unwrap())
+    Ok(Redirect::to("/dashboard"))
 }
