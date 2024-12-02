@@ -6,10 +6,10 @@ CREATE TABLE accounts (
     provider_account_id VARCHAR(255) NOT NULL, -- external ID from the provider
     provider_access_token TEXT,
     provider_refresh_token TEXT,
-    provider_token_expires_at TIMESTAMP,
+    provider_token_expires_at TIMESTAMP WITH TIME ZONE,
     provider_username VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(provider, provider_account_id)
 );
 
