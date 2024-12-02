@@ -65,7 +65,7 @@ async fn main() {
                 .route("/register", post(routes::auth::register))
                 .route("/login", post(routes::auth::login))
                 .nest(
-                    "/oauth/twitch",
+                    "/twitch",
                     Router::new()
                         .route("/", get(routes::auth::oauth::twitch::oauth_redirect))
                         .route(

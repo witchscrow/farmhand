@@ -12,7 +12,7 @@ use std::{env, sync::Arc};
 use urlencoding::encode;
 use uuid::Uuid;
 
-use crate::AppState;
+use crate::{jwt::encode_jwt, AppState};
 
 #[derive(Debug, Deserialize)]
 pub struct TwitchCallback {
@@ -185,6 +185,8 @@ pub async fn oauth_callback(
 
     let expires_at = Utc::now() + Duration::seconds(tokens.expires_in as i64);
 
+    let frontend_url = std::env::var("FRONTEND_URL").expect("Could not find frontend url");
+
     match current_user {
         // Update existing user's Twitch connection
         Some(user) => {
@@ -203,11 +205,20 @@ pub async fn oauth_callback(
                 tracing::error!("Failed to update Twitch account: {}", e);
                 return Err(StatusCode::INTERNAL_SERVER_ERROR);
             }
+
+            // Generate JWT for existing user
+            let token =
+                encode_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            Ok(Redirect::to(&format!(
+                "{}/login?token={}",
+                frontend_url, token
+            )))
         }
         // Create new user and Twitch connection
         None => {
-            // First check if user already exists with this email
-            if let Ok(existing_user) = User::by_email(twitch_user.email.clone(), &state.db).await {
+            let user = if let Ok(existing_user) =
+                User::by_email(twitch_user.email.clone(), &state.db).await
+            {
                 // Link Twitch account to existing user
                 if let Err(e) = Account::upsert(
                     existing_user.id,
@@ -224,6 +235,7 @@ pub async fn oauth_callback(
                     tracing::error!("Failed to link Twitch account to existing user: {}", e);
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
+                existing_user
             } else {
                 // Create new user
                 let new_user = User::new(
@@ -253,10 +265,16 @@ pub async fn oauth_callback(
                     tracing::error!("Failed to create Twitch account: {}", e);
                     return Err(StatusCode::INTERNAL_SERVER_ERROR);
                 }
-            }
+                new_user
+            };
+
+            // Generate JWT for new or existing user
+            let token =
+                encode_jwt(&user.id.to_string()).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+            Ok(Redirect::to(&format!(
+                "{}/login?token={}",
+                frontend_url, token
+            )))
         }
     }
-
-    // Redirect to dashboard
-    Ok(Redirect::to("/dashboard"))
 }
