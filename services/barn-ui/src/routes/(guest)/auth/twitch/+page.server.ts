@@ -1,8 +1,7 @@
-import { generateOAuthURL } from '$lib/server/twitch';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { API_URL } from '$env/static/private';
 
 export const load = (async () => {
-	const twitchURL = generateOAuthURL();
-	redirect(307, twitchURL);
+	redirect(307, `${API_URL}/auth/twitch`);
 }) satisfies PageServerLoad;
