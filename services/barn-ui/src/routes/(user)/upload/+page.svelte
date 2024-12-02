@@ -225,13 +225,13 @@
 				return;
 			}
 
-			const validExtensions = ['.mp4', '.mov', '.m4v'];
+			const validExtensions = ['.mp4'];
 			const hasValidExtension = validExtensions.some((ext) =>
 				selectedFile.name.toLowerCase().endsWith(ext)
 			);
 
 			if (!hasValidExtension) {
-				errorMessage = 'Only .mp4 and .mov files are allowed';
+				errorMessage = 'Only .mp4 files are allowed';
 				return;
 			}
 			file = selectedFile;
@@ -256,13 +256,9 @@
 </script>
 
 <section class="flex flex-col items-center justify-center">
-	<aside class="flex flex-col space-y-4 text-center">
+	<aside class="flex min-w-[50%] flex-col space-y-4 text-center">
 		<h1 class="font-serif text-2xl text-secondary-700 dark:text-primary-500">Upload</h1>
 		<p class="text-secondary-800 dark:text-primary-100">Upload your latest livestream or replay</p>
-		<Alert
-			type="info"
-			message="Don't want to manually upload your livestreams? Try our program for auto-uploads"
-		/>
 
 		<!-- Upload UI -->
 		<div class="flex w-full flex-col space-y-4">
@@ -279,11 +275,11 @@
 						d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z"
 					/>
 				</svg>
-				<span class="mt-2 text-base">Select a video file (.mp4 or .mov)</span>
+				<span class="mt-2 text-base">Select a video file (.mp4)</span>
 				<input
 					type="file"
 					class="hidden"
-					accept="video/mp4,video/quicktime"
+					accept="video/mp4"
 					onchange={handleFileSelect}
 					disabled={uploading}
 				/>

@@ -63,12 +63,26 @@ async fn main() {
             "/auth",
             Router::new()
                 .route("/register", post(routes::auth::register))
-                .route("/login", post(routes::auth::login)),
+                .route("/login", post(routes::auth::login))
+                .nest(
+                    "/twitch",
+                    Router::new()
+                        .route("/", get(routes::auth::oauth::twitch::oauth_redirect))
+                        .route(
+                            "/callback",
+                            get(routes::auth::oauth::twitch::oauth_callback).layer(
+                                axum_mw::from_fn_with_state(
+                                    state.clone(),
+                                    middleware::auth::auth_middleware,
+                                ),
+                            ),
+                        ),
+                ),
         )
         .nest(
             "/user",
             Router::new()
-                .route("/me", get(routes::user::get_user))
+                .route("/me", get(routes::user::get_self))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,

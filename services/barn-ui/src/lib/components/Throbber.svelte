@@ -1,10 +1,13 @@
-<div
-	class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-	role="status"
->
-	<span
-		class="!absolute !-m-px !h-px !w-px !overflow-hidden !whitespace-nowrap !border-0 !p-0 ![clip:rect(0,0,0,0)]"
-	>
-		Loading...
-	</span>
-</div>
+<script>
+	import { ProgressRadial } from '@skeletonlabs/skeleton';
+
+	let { width = 'w-10', stroke = 100 } = $props();
+</script>
+
+<ProgressRadial
+	meter="stroke-primary-500"
+	track="stroke-primary-500/30"
+	strokeLinecap="round"
+	{width}
+	{stroke}
+/>

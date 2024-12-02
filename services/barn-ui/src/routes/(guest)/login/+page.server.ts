@@ -1,6 +1,21 @@
 import { redirect } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { env } from '$env/dynamic/private';
+
+export const load: PageServerLoad = async ({ url, cookies, locals }) => {
+	const token = url.searchParams.get('token');
+	if (token) {
+		cookies.set('jwt', token, {
+			path: '/',
+			expires: new Date(Date.now() + 1000 * 60 * 60 * 24),
+			sameSite: true
+		});
+	}
+
+	return {
+		loggedIn: Boolean(locals.user || token)
+	};
+};
 
 export const actions = {
 	default: async ({ request, cookies }) => {

@@ -1,4 +1,4 @@
-import { getUser, UserError } from '$lib/server/users';
+import { getTokenIdentity, UserError } from '$lib/server/users';
 import type { Handle } from '@sveltejs/kit';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -7,7 +7,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// If a jwt exists and there is no user, get the user
 	if (jwt && !event.locals.user) {
 		try {
-			const user = await getUser(jwt);
+			const user = await getTokenIdentity(jwt);
 			if (user) {
 				event.locals.user = user;
 			}
