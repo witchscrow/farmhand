@@ -14,7 +14,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: staging
-
+    needs: build
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
