@@ -18,7 +18,7 @@ spec:
             - containerPort: 3000
           envFrom:
             - configMapRef:
-                name: api-config
+                name: farmhand-api-config
           resources:
             requests:
               cpu: "100m"
