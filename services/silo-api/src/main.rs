@@ -108,6 +108,7 @@ async fn main() {
                 )),
         )
         .nest_service("/videos", tower_http::services::ServeDir::new("videos"))
+        .route("/health", get(routes::health::health_check))
         .with_state(state)
         .layer(CorsLayer::permissive())
         .layer(
