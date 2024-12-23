@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api
+  name: farmhand-api
 spec:
   selector:
     matchLabels:
-      app: api
+      app: farmhand-api
   template:
     metadata:
       labels:
-        app: api
+        app: farmhand-api
     spec:
       containers:
-        - name: api
+        - name: farmhand-api
           image: api
           ports:
             - containerPort: 3000
