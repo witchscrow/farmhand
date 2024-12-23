@@ -36,4 +36,4 @@ jobs:
       - name: Deploy to staging
         run: |
           kubectl apply -k k8s/overlays/staging
-          kubectl rollout status deployment/farmhand-api-staging -n staging --timeout=5m
+          kubectl rollout status deployment/farmhand-api-staging -n staging --timeout=2m
