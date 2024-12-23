@@ -6,6 +6,17 @@ on:
       - prereleased
       - released
   workflow_dispatch:
+  workflow_call:
+    outputs:
+      api_image:
+        description: "The full API image tag"
+        value: ${{ jobs.build-api.outputs.image_tag }}
+      queue_image:
+        description: "The full Queue image tag"
+        value: ${{ jobs.build-queue.outputs.image_tag }}
+      ui_image:
+        description: "The full UI image tag"
+        value: ${{ jobs.build-ui.outputs.image_tag }}
 
 jobs:
   setup:
@@ -23,12 +34,18 @@ jobs:
   build-api:
     needs: setup
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image_tag.outputs.value }}
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: image_tag
+        run: echo "value=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:${{ needs.setup.outputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -49,22 +66,28 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:latest
+            ${{ steps.image_tag.outputs.value }}
           cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
-        run: echo "API image digest $(doctl registry repository digest-list ${{ vars.API_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+        run: echo "API image digest $(doctl registry repository digest-list ${{ vars.API_IMAGE }} --format Tag,Digest --no-header | grep ${{ needs.setup.outputs.version }})"
 
   build-queue:
     needs: setup
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image_tag.outputs.value }}
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: image_tag
+        run: echo "value=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:${{ needs.setup.outputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -85,22 +108,28 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:latest
+            ${{ steps.image_tag.outputs.value }}
           cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
-        run: echo "Queue image digest $(doctl registry repository digest-list ${{ vars.QUEUE_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+        run: echo "Queue image digest $(doctl registry repository digest-list ${{ vars.QUEUE_IMAGE }} --format Tag,Digest --no-header | grep ${{ needs.setup.outputs.version }})"
 
   build-ui:
     needs: setup
     runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.image_tag.outputs.value }}
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: image_tag
+        run: echo "value=${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:${{ needs.setup.outputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -121,9 +150,9 @@ jobs:
           push: true
           platforms: linux/amd64
           tags: |
-            ${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:latest
+            ${{ steps.image_tag.outputs.value }}
           cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:buildcache
           cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.UI_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
-        run: echo "UI image digest $(doctl registry repository digest-list ${{ vars.UI_IMAGE }} --format Tag,Digest --no-header | grep latest)"
+        run: echo "UI image digest $(doctl registry repository digest-list ${{ vars.UI_IMAGE }} --format Tag,Digest --no-header | grep ${{ needs.setup.outputs.version }})"
