@@ -19,6 +19,14 @@ spec:
           envFrom:
             - configMapRef:
                 name: farmhand-api-config
+            - secretRef:
+                name: urdar-default-credentials
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: urdar-default-credentials
+                  key: uri
           resources:
             requests:
               cpu: "100m"
