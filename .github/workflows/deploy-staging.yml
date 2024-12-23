@@ -1,0 +1,38 @@
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+  release:
+    types:
+      - prereleased
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-images.yml
+    secrets: inherit
+
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Save DigitalOcean kubeconfig
+        run: doctl kubernetes cluster kubeconfig save ${{ vars.CLUSTER_NAME }}
+
+      - name: Update kustomization
+        run: |
+          cd k8s/overlays/staging
+          kustomize edit set image api=${{ needs.build.outputs.api_image }}
+
+      - name: Deploy to staging
+        run: |
+          kubectl apply -k k8s/overlays/staging
+          kubectl rollout status deployment/api -n staging
