@@ -31,8 +31,9 @@ jobs:
         run: |
           cd k8s/overlays/staging
           kustomize edit set image api=${{ needs.build.outputs.api_image }}
+          kustomize build .
 
-      - name: Deploy to staging
-        run: |
-          kubectl apply -k k8s/overlays/staging
-          kubectl rollout status deployment/farmhand-api-staging -n staging
+      # - name: Deploy to staging
+      #   run: |
+      #     kubectl apply -k k8s/overlays/staging
+      #     kubectl rollout status deployment/farmhand-api-staging -n staging --timeout=5m
