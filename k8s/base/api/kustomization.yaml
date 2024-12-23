@@ -5,8 +5,3 @@ resources:
   - deployment.yaml
   - service.yaml
   - configmap.yaml
-
-images:
-  - name: api
-    newName: placeholder
-    newTag: placeholder

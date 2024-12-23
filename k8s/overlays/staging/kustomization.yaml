@@ -9,8 +9,6 @@ resources:
 
 images:
   - name: api
-    newName: placeholder
-    newTag: placeholder
 
 labels:
   - includeSelectors: true
