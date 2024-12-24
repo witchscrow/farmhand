@@ -31,6 +31,7 @@ jobs:
         run: |
           cd k8s/overlays/staging
           kustomize edit set image api=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:${{ needs.build.outputs.image_tag }}
+          kustomize edit set image queue=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:${{ needs.build.outputs.image_tag }}
           kustomize build .
 
       - name: Deploy to staging

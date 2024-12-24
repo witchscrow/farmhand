@@ -11,6 +11,7 @@ resources:
 
 images:
   - name: api
+  - name: queue
 
 labels:
   - includeSelectors: true
