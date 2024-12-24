@@ -21,6 +21,10 @@ spec:
                 name: farmhand-api-config
             - secretRef:
                 name: urdar-default-credentials
+            - secretRef:
+                name: twitch-credentials
+            - secretRef:
+                name: jwt
           env:
             - name: DATABASE_URL
               valueFrom:
