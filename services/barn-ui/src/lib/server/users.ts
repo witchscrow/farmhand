@@ -12,7 +12,8 @@ export const getTokenIdentity = async (token: string): Promise<User | null> => {
 		const response = await fetch(`${env.API_URL}/user/me`, {
 			headers: {
 				Authorization: `Bearer ${token}`
-			}
+			},
+			credentials: 'include'
 		});
 
 		if (response.ok) {
