@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: farmhand-ui
-          image: api
+          image: ui
           ports:
             - containerPort: 3000
           envFrom:
