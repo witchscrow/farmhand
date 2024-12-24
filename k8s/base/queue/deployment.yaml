@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmhand-queue
+spec:
+  selector:
+    matchLabels:
+      app: farmhand-queue
+  template:
+    metadata:
+      labels:
+        app: farmhand-queue
+    spec:
+      containers:
+        - name: farmhand-queue
+          image: queue
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: farmhand-queue-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: farmhand-db
+                  key: uri
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10

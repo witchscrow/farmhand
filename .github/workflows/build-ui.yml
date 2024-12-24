@@ -1,4 +1,4 @@
-name: build web
+name: build ui
 
 on:
   push:
@@ -9,11 +9,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
-    defaults:
-      run:
-        working-directory: packages/web
-
     steps:
       - uses: actions/checkout@v4
 
@@ -24,14 +19,14 @@ jobs:
           cache: "yarn"
           cache-dependency-path: |
             yarn.lock
-            packages/web/yarn.lock
+            services/barn-ui/yarn.lock
 
       # Cache the build output directory
       - name: Cache build output
         uses: actions/cache@v4
         with:
           path: |
-            packages/web/.svelte-kit
+            services/barn-ui/.svelte-kit
           key: ${{ runner.os }}-web-build-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-web-build-
@@ -42,7 +37,7 @@ jobs:
         with:
           path: |
             node_modules
-            packages/web/node_modules
+            services/barn-ui/node_modules
           key: ${{ runner.os }}-node-modules-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
             ${{ runner.os }}-node-modules-

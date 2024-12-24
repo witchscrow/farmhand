@@ -13,7 +13,7 @@
 				clearInterval(interval);
 				goto('/', { invalidateAll: true });
 			}
-		}, 50);
+		}, 250);
 
 		return () => clearInterval(interval);
 	});

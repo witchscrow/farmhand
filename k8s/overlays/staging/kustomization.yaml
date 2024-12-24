@@ -6,11 +6,14 @@ nameSuffix: -staging
 
 resources:
   - ../../base/api
+  - ../../base/queue
+  - ../../base/ui
+  - ingress.yaml
 
 images:
   - name: api
-    newName: placeholder
-    newTag: placeholder
+  - name: queue
+  - name: ui
 
 labels:
   - includeSelectors: true

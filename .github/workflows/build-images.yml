@@ -8,15 +8,9 @@ on:
   workflow_dispatch:
   workflow_call:
     outputs:
-      api_image:
-        description: "The full API image tag"
-        value: ${{ jobs.build-api.outputs.image_tag }}
-      queue_image:
-        description: "The full Queue image tag"
-        value: ${{ jobs.build-queue.outputs.image_tag }}
-      ui_image:
-        description: "The full UI image tag"
-        value: ${{ jobs.build-ui.outputs.image_tag }}
+      image_tag:
+        description: "The tag for all images in this run"
+        value: ${{ jobs.setup.outputs.version }}
 
 jobs:
   setup:
@@ -34,11 +28,6 @@ jobs:
   build-api:
     needs: setup
     runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.image_tag.outputs.value }}
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,11 +65,6 @@ jobs:
   build-queue:
     needs: setup
     runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.image_tag.outputs.value }}
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -118,11 +102,6 @@ jobs:
   build-ui:
     needs: setup
     runs-on: ubuntu-latest
-    outputs:
-      image_tag: ${{ steps.image_tag.outputs.value }}
-    permissions:
-      contents: read
-      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

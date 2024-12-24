@@ -18,7 +18,28 @@ spec:
             - containerPort: 3000
           envFrom:
             - configMapRef:
-                name: api-config
+                name: farmhand-api-config
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: farmhand-db
+                  key: uri
+            - name: TWITCH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: twitch-credentials
+                  key: client-id
+            - name: TWITCH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: twitch-credentials
+                  key: client-secret
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: jwt
+                  key: secret
           resources:
             requests:
               cpu: "100m"
