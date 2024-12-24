@@ -20,7 +20,7 @@ spec:
             - configMapRef:
                 name: farmhand-api-config
             - secretRef:
-                name: urdar-default-credentials
+                name: farmhand-db
             - secretRef:
                 name: twitch-credentials
             - secretRef:
