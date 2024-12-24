@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: farmhand-ui-config
 data:
-  API_URL: "http://staging.api.farmhand.witchscrow.com"
+  API_URL: "https://staging.api.farmhand.witchscrow.com"
