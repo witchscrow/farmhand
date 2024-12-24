@@ -19,8 +19,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: farmhand-ui-config
-            - secretRef:
-                name: urdar-default-credentials
           resources:
             requests:
               cpu: "100m"
