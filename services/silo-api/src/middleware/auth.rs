@@ -27,6 +27,7 @@ pub async fn auth_middleware(
         // This middleware allows for optional users, so we just return early if no auth headers are found
         None => {
             tracing::debug!("No auth headers, skipping user lookup");
+            tracing::debug!("Headers: {:#?}", req.headers());
             req.extensions_mut().insert(None::<User>);
             return Ok(next.run(req).await);
         }
