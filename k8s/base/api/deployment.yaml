@@ -19,10 +19,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: farmhand-api-config
-            - secretRef:
-                name: twitch-credentials
-            - secretRef:
-                name: jwt
           env:
             - name: DATABASE_URL
               valueFrom:
