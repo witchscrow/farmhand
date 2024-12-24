@@ -8,35 +8,38 @@ export enum UserError {
 
 export const getTokenIdentity = async (token: string): Promise<User | null> => {
 	try {
-		console.log('Sending request with token:', token); // Debug log
+		console.log('Making request to:', `${env.API_URL}/user/me`);
+		console.log('With token:', token.substring(0, 10) + '...'); // Log partial token for safety
 
 		const headers = {
 			Authorization: `Bearer ${token}`,
-			'Content-Type': 'application/json',
-			Origin: 'https://staging.farmhand.witchscrow.com'
+			'Content-Type': 'application/json'
 		};
-
-		console.log('Request headers:', headers); // Debug log
 
 		const response = await fetch(`${env.API_URL}/user/me`, {
 			method: 'GET',
-			headers,
-			credentials: 'include',
-			mode: 'cors'
+			headers
 		});
 
-		console.log('Response status:', response.status); // Debug log
-		console.log('Response headers:', Object.fromEntries(response.headers)); // Debug log
+		// Log the complete request details
+		console.log('Request details:', {
+			url: `${env.API_URL}/user/me`,
+			method: 'GET',
+			headers: headers
+		});
 
 		if (response.ok) {
 			const userData: User = await response.json();
 			return userData;
 		} else {
-			console.error('Response not OK:', await response.text()); // Debug log
+			console.error('Response status:', response.status);
+			console.error('Response headers:', response.headers);
+			const errorText = await response.text();
+			console.error('Error response:', errorText);
 			throw UserError.INVALID_TOKEN;
 		}
 	} catch (e) {
-		console.error('Error in getTokenIdentity:', e); // Debug log
+		console.error('Error in getTokenIdentity:', e);
 		if (e === UserError.INVALID_TOKEN) {
 			throw e;
 		}
