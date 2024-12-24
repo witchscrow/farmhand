@@ -4,7 +4,6 @@ mod middleware;
 mod routes;
 
 use axum::{
-    extract::DefaultBodyLimit,
     middleware as axum_mw,
     response::IntoResponse,
     routing::{delete, get, post},
@@ -12,7 +11,6 @@ use axum::{
 };
 use config::Config;
 use queue::{PostgresQueue, Queue};
-use routes::upload::UPLOAD_CHUNK_SIZE;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tower_http::{
@@ -55,7 +53,6 @@ async fn main() {
     let queue = Arc::new(PostgresQueue::new(db.clone()));
     // Store shared data as state between routes
     let state = Arc::new(AppState { db, config, queue });
-    routes::upload::init_cleanup().await;
     // Initialize our router with the shared state and required routes
     let app = Router::new()
         .route("/", get(index))
@@ -88,16 +85,13 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
-        // TODO: Update this to use Backblaze instead
-        // .route(
-        //     "/upload",
-        //     post(routes::upload::upload_video)
-        //         .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8))
-        //         .layer(axum_mw::from_fn_with_state(
-        //             state.clone(),
-        //             middleware::auth::auth_middleware,
-        //         )),
-        // )
+        .route(
+            "/upload",
+            post(routes::upload::on_disk::upload_video).layer(axum_mw::from_fn_with_state(
+                state.clone(),
+                middleware::auth::auth_middleware,
+            )),
+        )
         .nest(
             "/video",
             Router::new()

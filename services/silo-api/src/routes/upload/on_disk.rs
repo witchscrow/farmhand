@@ -36,6 +36,8 @@ lazy_static::lazy_static! {
     static ref UPLOAD_STATES: Mutex<HashMap<String, UploadState>> = Mutex::new(HashMap::new());
 }
 
+/// Upload video directly to the server
+/// DEPRECATED: Favor using Cloudflare-R2 instead
 pub async fn upload_video(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<Option<User>>,
@@ -396,6 +398,8 @@ pub async fn upload_video(
     }
 }
 
+/// Removes temp files that are more than an hour old. This is useful for cleaning up
+/// partially uploaded files that were never completed.
 async fn cleanup_temp_files() -> Result<(), std::io::Error> {
     let upload_dir = std::env::current_dir()?.join("uploads");
     let mut read_dir = tokio::fs::read_dir(&upload_dir).await?;
@@ -416,6 +420,7 @@ async fn cleanup_temp_files() -> Result<(), std::io::Error> {
     Ok(())
 }
 
+/// Cleans up temporary upload files by removing those older than 1 hour
 pub async fn init_cleanup() {
     tokio::spawn(async {
         loop {
