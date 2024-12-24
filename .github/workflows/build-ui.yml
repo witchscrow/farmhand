@@ -1,4 +1,4 @@
-name: build web
+name: build ui
 
 on:
   push:

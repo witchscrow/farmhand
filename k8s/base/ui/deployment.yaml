@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: farmhand-ui
+spec:
+  selector:
+    matchLabels:
+      app: farmhand-ui
+  template:
+    metadata:
+      labels:
+        app: farmhand-ui
+    spec:
+      containers:
+        - name: farmhand-ui
+          image: api
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: farmhand-ui-config
+            - secretRef:
+                name: urdar-default-credentials
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10

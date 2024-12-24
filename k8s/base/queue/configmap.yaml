@@ -3,4 +3,4 @@ kind: ConfigMap
 metadata:
   name: farmhand-queue-config
 data:
-  LOG_LEVEL: "api=debug"
+  LOG_LEVEL: "queue=debug"

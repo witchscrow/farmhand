@@ -27,6 +27,21 @@ spec:
                 secretKeyRef:
                   name: urdar-default-credentials
                   key: uri
+            - name: TWITCH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: twitch-credentials
+                  key: client-id
+            - name: TWITCH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: twitch-credentials
+                  key: client-secret
+            - name: JWT_SECRET
+              valuefrom:
+                secretKeyRef:
+                  name: jwt
+                  key: secret
           resources:
             requests:
               cpu: "100m"
