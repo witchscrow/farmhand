@@ -1,19 +1,13 @@
+use aws_sdk_s3::config::{Credentials, Region};
+use sha2::digest::typenum::Xor;
+
 pub const DEFAULT_PORT: &str = "3000"; // This is stored as a string to match environment vars
 
 /// Global Configuration for the API Server
 pub struct Config {
     pub port: String,
     pub upload_dir: Option<String>,
-    pub s3_options: Option<S3Config>,
-}
-
-/// S3 compatible configuration options
-pub struct S3Config {
-    endpoint: String,
-    bucket: String,
-    access_key: String,
-    secret_key: String,
-    region: String,
+    pub s3_options: Option<aws_sdk_s3::Config>,
 }
 
 impl Config {
@@ -46,7 +40,7 @@ impl Config {
         }
     }
     /// Gets the S3 configuration from environment variables
-    pub fn get_s3_config() -> Option<S3Config> {
+    pub fn get_s3_config() -> Option<aws_sdk_s3::Config> {
         let endpoint = std::env::var("R2_ENDPOINT");
         let bucket = std::env::var("R2_BUCKET");
         let access_key = std::env::var("R2_ACCESS_KEY_ID");
@@ -70,12 +64,22 @@ impl Config {
             return None;
         }
 
-        Some(S3Config {
-            endpoint: endpoint.unwrap(),
-            bucket: bucket.unwrap(),
-            access_key: access_key.unwrap(),
-            secret_key: secret_key.unwrap(),
-            region: region.unwrap_or_else(|_| "auto".to_string()),
-        })
+        // Setup creds
+        let creds = Credentials::new(
+            access_key.unwrap(),
+            secret_key.unwrap(),
+            None,
+            None,
+            "farmhand",
+        );
+
+        // Construct config
+        let config = aws_sdk_s3::Config::builder()
+            .credentials_provider(creds)
+            .endpoint_url(endpoint.unwrap())
+            .region(Region::new(region.unwrap()))
+            .build();
+
+        Some(config)
     }
 }
