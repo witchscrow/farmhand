@@ -19,8 +19,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: farmhand-queue-config
-            - secretRef:
-                name: farmhand-db
           env:
             - name: DATABASE_URL
               valueFrom:

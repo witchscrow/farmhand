@@ -20,8 +20,6 @@ spec:
             - configMapRef:
                 name: farmhand-api-config
             - secretRef:
-                name: farmhand-db
-            - secretRef:
                 name: twitch-credentials
             - secretRef:
                 name: jwt
