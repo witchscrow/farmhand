@@ -6,5 +6,5 @@ data:
   FRONTEND_URL: "https://staging.farmhand.witchscrow.com"
   RUST_LOG: "api=debug"
   FFMPEG_LOCATION: "/opt/homebrew/bin/ffmpeg" # TODO: Make this is the right path for docker context
-  TWITCH_REDIRECT_URI: "http://localhost:3000/auth/twitch/callback"
+  TWITCH_REDIRECT_URI: "https://staging.farmhand.witchscrow.com/auth/twitch/callback"
   LOG_LEVEL: "api=debug"
