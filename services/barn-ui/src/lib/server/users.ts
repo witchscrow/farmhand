@@ -13,7 +13,8 @@ export const getTokenIdentity = async (token: string): Promise<User | null> => {
 			headers: {
 				Authorization: `Bearer ${token}`
 			},
-			credentials: 'include'
+			credentials: 'include',
+			mode: 'cors'
 		});
 
 		if (response.ok) {

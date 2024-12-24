@@ -14,18 +14,12 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-real-ip-cidr: "173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22"
     # Cors settings
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://staging.farmhand.witchscrow.com"
     nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    nginx.ingress.kubernetes.io/cors-expose-headers: "Authorization,Content-Length,Content-Range"
-    nginx.ingress.kubernetes.io/auth-snippet: |
-      proxy_set_header Authorization $http_authorization;
-    nginx.ingress.kubernetes.io/proxy-set-headers: |
-      Authorization: $http_authorization
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_pass_header Authorization;
-    nginx.ingress.kubernetes.io/auth-request-headers: "Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://staging.farmhand.witchscrow.com"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "Authorization"
+    nginx.ingress.kubernetes.io/proxy-set-headers: "ingress-nginx/custom-headers"
 spec:
   ingressClassName: nginx
   tls:
@@ -59,18 +53,12 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-real-ip-cidr: "173.245.48.0/20,103.21.244.0/22,103.22.200.0/22,103.31.4.0/22,141.101.64.0/18,108.162.192.0/18,190.93.240.0/20,188.114.96.0/20,197.234.240.0/22,198.41.128.0/17,162.158.0.0/15,104.16.0.0/13,104.24.0.0/14,172.64.0.0/13,131.0.72.0/22"
     # Cors settings
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://staging.farmhand.witchscrow.com"
     nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
-    nginx.ingress.kubernetes.io/cors-expose-headers: "Authorization,Content-Length,Content-Range"
-    nginx.ingress.kubernetes.io/auth-snippet: |
-      proxy_set_header Authorization $http_authorization;
-    nginx.ingress.kubernetes.io/proxy-set-headers: |
-      Authorization: $http_authorization
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      proxy_pass_header Authorization;
-    nginx.ingress.kubernetes.io/auth-request-headers: "Authorization"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://staging.farmhand.witchscrow.com"
+    nginx.ingress.kubernetes.io/cors-expose-headers: "Authorization"
+    nginx.ingress.kubernetes.io/proxy-set-headers: "ingress-nginx/custom-headers"
 spec:
   ingressClassName: nginx
   tls:
@@ -88,3 +76,14 @@ spec:
                 name: farmhand-api-staging
                 port:
                   number: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-headers
+  namespace: ingress-nginx
+data:
+  X-Forwarded-Proto: https
+  X-Real-IP: $remote_addr
+  X-Forwarded-For: $proxy_add_x_forwarded_for
+  Authorization: $http_authorization
