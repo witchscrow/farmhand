@@ -40,5 +40,8 @@ RUN apt-get update && apt-get install -y \
 # Copy the binary from builder
 COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
 
+# Expose the health check server
+EXPOSE 8080
+
 # Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/forge"]

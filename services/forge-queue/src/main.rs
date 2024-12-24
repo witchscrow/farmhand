@@ -14,6 +14,15 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    // Spawn a health check server
+    tokio::spawn(async {
+        let app = axum::Router::new().route("/health", axum::routing::get(|| async { "OK" }));
+
+        let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+        tracing::info!("Health check server listening on port 8080");
+        axum::serve(listener, app).await.unwrap();
+    });
+
     // Get database connection pool using the db package
     let db_pool = connect_to_database().await?;
 

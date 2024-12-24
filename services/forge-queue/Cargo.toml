@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+axum = { version = "0.7.9", features = ["tracing"] }
 db = { path = "../../packages/db" }
 queue = { path = "../../packages/queue" }
 tokio = { version = "1", features = ["full"] }
