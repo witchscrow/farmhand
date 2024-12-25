@@ -28,17 +28,17 @@ spec:
             - name: TWITCH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: twitch-credentials
+                  name: farmhand-twitch-credentials
                   key: client-id
             - name: TWITCH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: twitch-credentials
+                  name: farmhand-twitch-credentials
                   key: client-secret
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: jwt
+                  name: farmhand-jwt
                   key: secret
           resources:
             requests:
