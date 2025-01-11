@@ -1,19 +1,18 @@
+mod app_state;
 mod config;
 mod jwt;
 mod middleware;
 mod routes;
 
+pub use app_state::AppState;
 use axum::{
-    extract::DefaultBodyLimit,
     middleware as axum_mw,
     response::IntoResponse,
     routing::{delete, get, post},
     Router,
 };
 use config::Config;
-use queue::{PostgresQueue, Queue};
-use routes::upload::UPLOAD_CHUNK_SIZE;
-use sqlx::PgPool;
+
 use std::sync::Arc;
 use tower_http::{
     cors::CorsLayer,
@@ -22,13 +21,6 @@ use tower_http::{
 };
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-/// Shared state available to the API
-pub struct AppState {
-    db: PgPool,
-    config: Config,
-    queue: Arc<dyn Queue>,
-}
 
 #[tokio::main]
 async fn main() {
@@ -47,15 +39,11 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&config.get_address())
         .await
         .unwrap();
-    // Initialize a connection to the database
-    let db = db::connect_to_database()
-        .await
-        .expect("Could not connect to database");
-    // Initialize the queue
-    let queue = Arc::new(PostgresQueue::new(db.clone()));
     // Store shared data as state between routes
-    let state = Arc::new(AppState { db, config, queue });
-    routes::upload::init_cleanup().await;
+    let app_state = AppState::new(config)
+        .await
+        .expect("Could not construct app state");
+    let state = Arc::new(app_state);
     // Initialize our router with the shared state and required routes
     let app = Router::new()
         .route("/", get(index))
@@ -88,16 +76,13 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
-        // TODO: Update this to use Backblaze instead
-        // .route(
-        //     "/upload",
-        //     post(routes::upload::upload_video)
-        //         .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8))
-        //         .layer(axum_mw::from_fn_with_state(
-        //             state.clone(),
-        //             middleware::auth::auth_middleware,
-        //         )),
-        // )
+        .route(
+            "/upload",
+            post(routes::upload::on_disk::upload_video).layer(axum_mw::from_fn_with_state(
+                state.clone(),
+                middleware::auth::auth_middleware,
+            )),
+        )
         .nest(
             "/video",
             Router::new()
