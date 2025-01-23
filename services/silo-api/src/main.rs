@@ -3,6 +3,7 @@ mod config;
 mod jwt;
 mod middleware;
 mod routes;
+mod s3;
 
 pub use app_state::AppState;
 use axum::{
@@ -76,12 +77,14 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
-        .route(
+        .nest(
             "/upload",
-            post(routes::upload::on_disk::upload_video).layer(axum_mw::from_fn_with_state(
-                state.clone(),
-                middleware::auth::auth_middleware,
-            )),
+            Router::new()
+                .route("/start", post(routes::upload::cloud::init_upload))
+                .layer(axum_mw::from_fn_with_state(
+                    state.clone(),
+                    middleware::auth::auth_middleware,
+                )),
         )
         .nest(
             "/video",

@@ -1,13 +1,10 @@
-use aws_sdk_s3::config::{Credentials, Region};
-use sha2::digest::typenum::Xor;
-
 pub const DEFAULT_PORT: &str = "3000"; // This is stored as a string to match environment vars
 
 /// Global Configuration for the API Server
 pub struct Config {
     pub port: String,
     pub upload_dir: Option<String>,
-    pub s3_options: Option<aws_sdk_s3::Config>,
+    pub upload_bucket: Option<String>,
 }
 
 impl Config {
@@ -15,7 +12,7 @@ impl Config {
         Config {
             port: Self::get_port(),
             upload_dir: Self::get_upload_dir(),
-            s3_options: Self::get_s3_config(),
+            upload_bucket: Self::get_upload_bucket(),
         }
     }
     /// Gets the port from environment variables
@@ -39,47 +36,8 @@ impl Config {
             Err(_) => None,
         }
     }
-    /// Gets the S3 configuration from environment variables
-    pub fn get_s3_config() -> Option<aws_sdk_s3::Config> {
-        let endpoint = std::env::var("R2_ENDPOINT");
-        let bucket = std::env::var("R2_BUCKET");
-        let access_key = std::env::var("R2_ACCESS_KEY_ID");
-        let secret_key = std::env::var("R2_SECRET_ACCESS_KEY");
-        let region = std::env::var("R2_REGION");
-
-        let config_values = [&endpoint, &bucket, &access_key, &secret_key, &region];
-        // Check if any of the variables exist or if they're all empty
-        let has_some = config_values.iter().any(|result| result.is_ok());
-        let has_all = config_values.iter().all(|result| result.is_ok());
-
-        // Warn the user that the configuration was ignored due to missing values
-        if has_some && !has_all {
-            tracing::warn!(
-                "Some S3 configuration variables are set but not all - S3 storage will be disabled"
-            );
-            return None;
-        }
-        // Just return none if nothing was specified
-        if !has_some {
-            return None;
-        }
-
-        // Setup creds
-        let creds = Credentials::new(
-            access_key.unwrap(),
-            secret_key.unwrap(),
-            None,
-            None,
-            "farmhand",
-        );
-
-        // Construct config
-        let config = aws_sdk_s3::Config::builder()
-            .credentials_provider(creds)
-            .endpoint_url(endpoint.unwrap())
-            .region(Region::new(region.unwrap()))
-            .build();
-
-        Some(config)
+    /// Gets the Cloudflare R2 upload bucket to use from environment
+    pub fn get_upload_bucket() -> Option<String> {
+        std::env::var("UPLOAD_BUCKET").ok()
     }
 }
