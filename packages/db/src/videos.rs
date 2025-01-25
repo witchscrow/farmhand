@@ -34,7 +34,7 @@ impl Video {
         pool: &PgPool,
         video_id: Option<String>,
         user_id: Uuid,
-        title: Option<String>,
+        title: String,
         raw_video_path: Option<String>,
     ) -> Result<Self, sqlx::Error> {
         let video_id = video_id.unwrap_or(Self::gen_id());

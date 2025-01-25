@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use aws_sdk_s3::types::{
-    builders::CompletedMultipartUploadBuilder, CompletedMultipartUpload, CompletedPart,
-};
+use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use axum::{extract::State, Extension, Json};
 use db::{User, Video};
 use reqwest::StatusCode;
@@ -40,14 +38,17 @@ pub async fn init_upload(
     Extension(user): Extension<Option<User>>,
     Json(request): Json<InitUploadRequest>,
 ) -> Result<Json<InitUploadResponse>, StatusCode> {
-    // Requires a logged in user
+    // User required
+    tracing::trace!("Checking for user authorization on upload");
     let user = user.ok_or(StatusCode::UNAUTHORIZED)?;
-    // Get our bucket
+    // First, let R2 know we've completed the upload
+    tracing::trace!("Grabbing bucket");
     let bucket = state
         .config
         .upload_bucket
         .clone()
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+    tracing::trace!("Bucket found {}", &bucket);
 
     // TODO: Construct the key to be in a users directory
     // Example key for file `example_video.mp4` for user id `1234`
@@ -67,7 +68,7 @@ pub async fn init_upload(
         .send()
         .await
         .map_err(|e| {
-            tracing::error!("Could not start multipart upload {}", e);
+            tracing::error!("Could not start multipart upload {:?}", e);
             StatusCode::INTERNAL_SERVER_ERROR
         })?;
 
@@ -114,7 +115,7 @@ pub async fn init_upload(
         &state.db,
         Some(video_id),
         user.id,
-        request.title,
+        request.title.unwrap_or("Untitled".to_string()),
         Some(key.clone()),
     )
     .await
@@ -153,20 +154,22 @@ pub async fn complete_upload(
     Json(request): Json<CompleteUploadRequest>,
 ) -> Result<StatusCode, StatusCode> {
     // User required
+    tracing::trace!("Checking for user authorization on upload");
     let _user = user.ok_or(StatusCode::UNAUTHORIZED)?;
     // First, let R2 know we've completed the upload
-    let bucket = state
-        .config
-        .upload_bucket
-        .clone()
-        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
+    tracing::trace!("Grabbing bucket");
+    let bucket = state.config.upload_bucket.clone().ok_or({
+        tracing::error!("Could not get upload bucket");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    tracing::trace!("Bucket found {}", bucket);
 
     let serialized_completed_parts = request
         .completed_parts
         .iter()
         .map(|part| {
             CompletedPart::builder()
-                .e_tag(&part.etag)
+                .e_tag(part.etag.clone())
                 .part_number(part.number)
                 .build()
         })

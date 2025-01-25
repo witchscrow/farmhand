@@ -8,9 +8,6 @@ export enum UserError {
 
 export const getTokenIdentity = async (token: string): Promise<User | null> => {
 	try {
-		console.log('Making request to:', `${env.API_URL}/user/me`);
-		console.log('With token:', token.substring(0, 10) + '...'); // Log partial token for safety
-
 		const headers = {
 			Authorization: `Bearer ${token}`,
 			'Content-Type': 'application/json'
@@ -19,13 +16,6 @@ export const getTokenIdentity = async (token: string): Promise<User | null> => {
 		const response = await fetch(`${env.API_URL}/user/me`, {
 			method: 'GET',
 			headers
-		});
-
-		// Log the complete request details
-		console.log('Request details:', {
-			url: `${env.API_URL}/user/me`,
-			method: 'GET',
-			headers: headers
 		});
 
 		if (response.ok) {

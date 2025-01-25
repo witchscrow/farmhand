@@ -364,7 +364,7 @@ pub async fn upload_video(
                     &state.db,
                     None,
                     user.id,
-                    Some(video_title),
+                    video_title,
                     Some(final_path_str.clone()),
                 )
                 .await

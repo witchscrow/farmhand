@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { deserialize } from '$app/forms';
 	import type { ActionData } from './$types';
-
+	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
 	interface PartUrl {
 		part_number: number;
 		url: string;
@@ -13,13 +14,72 @@
 		part_urls: PartUrl[];
 	}
 
-	let file: File | null = null;
-	let uploadProgress = 0;
-	let isUploading = false;
-	let error: string | null = null;
-	let title = '';
+	let file: File | null = $state(null);
+	let uploadProgress = $state(0);
+	let isUploading = $state(false);
+	let error: string | null = $state(null);
+	let title = $state('');
 
 	const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
+	function handleFileSelect(event: Event): void {
+		const target = event.target as HTMLInputElement;
+		const files = target?.files;
+		if (files) {
+			file = files[0];
+		}
+	}
+
+	async function uploadSequentially(parts: PartUrl[], file: File) {
+		const completedParts: Array<{ number: number; etag?: string }> = [];
+		const totalParts = parts.length;
+
+		// Process parts one at a time
+		for (let i = 0; i < totalParts; i++) {
+			const { part_number, url } = parts[i];
+			const start = i * CHUNK_SIZE;
+			const end = Math.min(start + CHUNK_SIZE, file.size);
+			const chunk = file.slice(start, end);
+
+			// Add retry logic
+			let attempts = 0;
+			const maxAttempts = 3;
+
+			while (attempts < maxAttempts) {
+				try {
+					const response = await fetch(url, {
+						method: 'PUT',
+						body: chunk
+					});
+
+					if (!response.ok) {
+						throw new Error(`Failed to upload part ${part_number}`);
+					}
+
+					const etag = response.headers.get('ETag')?.replaceAll('"', '');
+
+					completedParts.push({
+						number: part_number,
+						etag
+					});
+
+					// Update progress
+					uploadProgress = ((i + 1) / totalParts) * 100;
+
+					break; // Success, exit retry loop
+				} catch (error) {
+					attempts++;
+					if (attempts === maxAttempts) {
+						throw error; // Rethrow if all attempts failed
+					}
+					// Wait before retrying
+					await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
+				}
+			}
+		}
+
+		return completedParts;
+	}
 
 	async function handleUpload() {
 		if (!file) return;
@@ -43,46 +103,14 @@
 				body: formData
 			});
 
-			const result = await response.json();
-			if (result.error) {
-				throw new Error(result.error);
+			const result: ActionData = deserialize(await response.text());
+			if (result?.error || !result) {
+				throw new Error(result?.error);
 			}
 
 			const { upload_id, video_id, key, part_urls } = result.data as UploadInitResponse;
-
-			// Upload parts in parallel directly to presigned URLs
-			const completedParts = await Promise.all(
-				part_urls.map(async ({ part_number, url }, index) => {
-					// Check if file is still available
-					if (!file) {
-						throw new Error('File was removed during upload');
-					}
-					const start = index * CHUNK_SIZE;
-					const end = Math.min(start + CHUNK_SIZE, file.size);
-					const chunk = file.slice(start, end);
-
-					const response = await fetch(url, {
-						method: 'PUT',
-						body: chunk
-					});
-
-					if (!response.ok) {
-						throw new Error(`Failed to upload part ${part_number}`);
-					}
-
-					const etag = response.headers.get('ETag')?.replaceAll('"', '');
-					if (!etag) throw new Error('No ETag received');
-
-					// Update progress
-					uploadProgress = ((index + 1) / parts) * 100;
-
-					return {
-						number: part_number,
-						etag
-					};
-				})
-			);
-
+			// Upload parts in controlled batches
+			const completedParts = await uploadSequentially(part_urls, file);
 			// Complete the upload through server action
 			const completeForm = new FormData();
 			completeForm.append('upload_id', upload_id);
@@ -104,7 +132,7 @@
 			file = null;
 			title = '';
 			uploadProgress = 0;
-			alert('Upload successful! Video is being processed.');
+			console.log('Uploaded video ', video_id);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Upload failed';
 			console.error(err);
@@ -114,58 +142,57 @@
 	}
 </script>
 
-<div class="mx-auto max-w-2xl p-6">
-	<h1 class="mb-8 text-3xl font-bold">Upload Video</h1>
+<div class="container mx-auto max-w-2xl space-y-4 p-4">
+	<h1 class="h1">Upload Video</h1>
 
-	<form on:submit|preventDefault={handleUpload} class="space-y-6">
-		<div>
-			<label for="title" class="mb-2 block text-sm font-medium text-gray-700">
-				Title (optional)
-			</label>
+	<form onsubmit={handleUpload} class="card space-y-4 p-4">
+		<label class="label">
+			<span>Title (optional)</span>
 			<input
+				class="input"
 				type="text"
-				id="title"
 				bind:value={title}
 				disabled={isUploading}
-				class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+				placeholder="Enter video title"
 			/>
-		</div>
+		</label>
 
-		<div>
-			<label for="file" class="mb-2 block text-sm font-medium text-gray-700"> Video File </label>
-			<input
-				type="file"
-				id="file"
-				accept="video/*"
-				on:change={(e) => (file = e.currentTarget.files?.[0] || null)}
-				disabled={isUploading}
-				class="w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
-			/>
-		</div>
+		<FileDropzone name="file" accept="video/*" disabled={isUploading} onchange={handleFileSelect}>
+			{#snippet lead()}
+				<i class="fas fa-cloud-upload-alt text-4xl"></i>
+			{/snippet}
+			{#snippet message()}
+				<div class="flex flex-col justify-center space-y-2 divide-y-2 divide-surface-500">
+					<div class="flex flex-col items-center justify-center">
+						<span class="font-bold">Upload Video</span>
+						<span class="text-sm">Drag and drop or click to select</span>
+					</div>
+					{#if file}
+						<span class="text-sm font-bold">{file.name}</span>
+					{/if}
+				</div>
+			{/snippet}
+		</FileDropzone>
 
 		{#if isUploading}
-			<div class="h-2.5 w-full rounded-full bg-gray-200">
-				<div
-					class="h-2.5 rounded-full bg-blue-600 transition-all duration-300"
-					style="width: {uploadProgress}%"
-				></div>
+			<div class="space-y-2">
+				<ProgressBar
+					value={uploadProgress}
+					max={100}
+					meter="bg-primary-500"
+					track="bg-primary-100"
+				/>
+				<p class="text-center text-sm">{Math.round(uploadProgress)}% uploaded</p>
 			</div>
-			<p class="text-center text-sm text-gray-600">
-				{Math.round(uploadProgress)}% uploaded
-			</p>
 		{/if}
 
 		{#if error}
-			<div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+			<div class="alert variant-filled-error">
 				{error}
 			</div>
 		{/if}
 
-		<button
-			type="submit"
-			disabled={!file || isUploading}
-			class="flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
-		>
+		<button type="submit" class="variant-filled-primary btn w-full" disabled={!file || isUploading}>
 			{isUploading ? 'Uploading...' : 'Upload Video'}
 		</button>
 	</form>

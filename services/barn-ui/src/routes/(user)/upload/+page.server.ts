@@ -28,7 +28,7 @@ export const actions = {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					Cookie: `jwt=${token}`
+					Authorization: `Bearer ${token}`
 				},
 				body: JSON.stringify({
 					parts,
@@ -42,8 +42,7 @@ export const actions = {
 				return fail(response.status, { error: 'Failed to initialize upload' });
 			}
 
-			const data = await response.json();
-			return { success: true, data };
+			return response.json();
 		} catch (error) {
 			console.error('Upload initialization failed:', error);
 			return fail(500, { error: 'Failed to initialize upload' });
@@ -59,11 +58,11 @@ export const actions = {
 		const completed_parts = JSON.parse(formData.get('completed_parts')?.toString() || '[]');
 
 		try {
-			const response = await fetch(`${env.API_URL}/upload/complete`, {
+			const response = await fetch(`${env.API_URL}/upload/finish`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					Cookie: `jwt=${token}`
+					Authorization: `Bearer ${token}`
 				},
 				body: JSON.stringify({
 					upload_id,

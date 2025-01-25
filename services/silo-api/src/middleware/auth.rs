@@ -52,6 +52,8 @@ pub async fn auth_middleware(
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
     // Pass the user to the extensions
+    tracing::trace!("Inserting user into request");
     req.extensions_mut().insert(Some(user));
+    tracing::trace!("Passing to next task");
     Ok(next.run(req).await)
 }
