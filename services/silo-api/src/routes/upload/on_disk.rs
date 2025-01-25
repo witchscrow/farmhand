@@ -360,7 +360,15 @@ pub async fn upload_video(
                     .trim_end_matches(".m4v")
                     .to_string();
 
-                match Video::create(&state.db, user.id, video_title, final_path_str.clone()).await {
+                match Video::create(
+                    &state.db,
+                    None,
+                    user.id,
+                    Some(video_title),
+                    Some(final_path_str.clone()),
+                )
+                .await
+                {
                     Ok(video) => {
                         tracing::debug!("Saved video metadata to database: {:?}", video);
 

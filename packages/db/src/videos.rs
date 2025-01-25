@@ -25,14 +25,19 @@ pub enum ProcessingStatus {
 }
 
 impl Video {
+    /// A function for generating a video id
+    pub fn gen_id() -> String {
+        nanoid!(10)
+    }
     /// A function for creating new video data in the db
     pub async fn create(
         pool: &PgPool,
+        video_id: Option<String>,
         user_id: Uuid,
-        title: String,
-        raw_video_path: String,
+        title: Option<String>,
+        raw_video_path: Option<String>,
     ) -> Result<Self, sqlx::Error> {
-        let video_id = nanoid!(10);
+        let video_id = video_id.unwrap_or(Self::gen_id());
         sqlx::query_as::<_, Video>(
             r#"
             INSERT INTO videos (id, user_id, title, raw_video_path, processing_status)
@@ -136,6 +141,25 @@ impl Video {
         )
         .bind(delete_list)
         .bind(user_id)
+        .execute(pool)
+        .await?;
+        Ok(())
+    }
+    /// A function for updating a videos processing status
+    pub async fn update_status(
+        pool: &PgPool,
+        id: String,
+        status: ProcessingStatus,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+                UPDATE videos
+                SET processing_status = $1
+                WHERE id = $2
+            "#,
+        )
+        .bind(status)
+        .bind(id)
         .execute(pool)
         .await?;
         Ok(())

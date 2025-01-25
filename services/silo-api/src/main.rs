@@ -81,6 +81,7 @@ async fn main() {
             "/upload",
             Router::new()
                 .route("/start", post(routes::upload::cloud::init_upload))
+                .route("/finish", post(routes::upload::cloud::complete_upload))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,

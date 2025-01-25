@@ -105,3 +105,24 @@ export const deleteVideos = async (idList: string[], token: string) => {
 		console.error('Error deleting videos', e);
 	}
 };
+
+/// The URL of a given part of a multipart upload
+type PartURL = {
+	part_number: string;
+	url: string;
+};
+
+// The initialized upload context from the API
+interface NewVideoUploadContext {
+	video_id: string;
+	part_id: string;
+	part_urls: PartURL[];
+}
+
+/// Sends an upload request to the API to get presigned urls for multipart upload
+export const startVideoUpload = async (
+	fileKey: string,
+	parts: number
+): Promise<NewVideoUploadContext> => {
+	throw new Error('Not implemented');
+};

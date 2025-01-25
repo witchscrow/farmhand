@@ -125,6 +125,7 @@ pub struct DeleteVideoResponse {
     deleted_videos: Vec<String>,
 }
 
+// TODO: Refactor to delete from R2 instead
 pub async fn delete_videos(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<Option<User>>,

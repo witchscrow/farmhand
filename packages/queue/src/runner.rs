@@ -9,7 +9,7 @@ use std::io::Write;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use vod::{HLSConverter, Quality};
+use vod::stream::{HLSConverter, Quality};
 use zip::{write::FileOptions, ZipWriter};
 
 /// Runs a loop that pulls jobs from the queue and runs <concurrency> jobs each loop
@@ -68,6 +68,8 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
             .execute(db)
             .await?;
 
+            // Download the video
+            let video_download = tokio::spawn(async move {});
             // Get video details
             let video = sqlx::query_as::<_, Video>("SELECT * FROM videos WHERE id = $1")
                 .bind(&video_id)
