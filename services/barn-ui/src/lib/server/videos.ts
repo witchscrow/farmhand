@@ -121,8 +121,8 @@ interface NewVideoUploadContext {
 
 /// Sends an upload request to the API to get presigned urls for multipart upload
 export const startVideoUpload = async (
-	fileKey: string,
-	parts: number
+	_fileKey: string,
+	_parts: number
 ): Promise<NewVideoUploadContext> => {
 	throw new Error('Not implemented');
 };
