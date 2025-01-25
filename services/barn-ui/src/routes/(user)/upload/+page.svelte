@@ -1,330 +1,172 @@
 <script lang="ts">
-	import Alert from '$lib/components/Alert.svelte';
-	import { onDestroy } from 'svelte';
-	import { filesize } from 'filesize';
+	import type { ActionData } from './$types';
 
-	let file: File | null = $state(null);
-	let progress = $state(0);
-	let uploading = $state(false);
-	let paused = $state(false);
-	let abortController: AbortController | null = $state(null);
-	let errorMessage: string | null = $state(null);
-	let successMessage: string | null = $state(null);
-	let { data } = $props();
-
-	const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
-	const MAX_CONCURRENT_UPLOADS = 5;
-	const MAX_RETRIES = 3;
-	const COMPRESSION_THRESHOLD = 5 * 1024 * 1024; // 5MB
-
-	function resetState() {
-		file = null;
-		progress = 0;
-		uploading = false;
-		paused = false;
-		abortController = null;
-		errorMessage = null;
-		successMessage = null;
+	interface PartUrl {
+		part_number: number;
+		url: string;
 	}
 
-	async function calculateChecksum(chunk: Blob): Promise<string> {
-		const arrayBuffer = await chunk.arrayBuffer();
-		const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-		const hashArray = Array.from(new Uint8Array(hashBuffer));
-		return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+	interface UploadInitResponse {
+		upload_id: string;
+		video_id: string;
+		key: string;
+		part_urls: PartUrl[];
 	}
 
-	async function compressChunk(chunk: Blob): Promise<Blob> {
-		if (chunk.size < COMPRESSION_THRESHOLD) {
-			return chunk;
-		}
+	let file: File | null = null;
+	let uploadProgress = 0;
+	let isUploading = false;
+	let error: string | null = null;
+	let title = '';
+
+	const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
+	async function handleUpload() {
+		if (!file) return;
+
+		isUploading = true;
+		error = null;
 
 		try {
-			if ('CompressionStream' in window) {
-				const compressed = new Blob([chunk]).stream().pipeThrough(new CompressionStream('gzip'));
-				return new Blob([await new Response(compressed).blob()], {
-					type: chunk.type
-				});
-			}
-		} catch (error) {
-			console.warn('Compression failed, using original chunk:', error);
-		}
-		return chunk;
-	}
+			// Calculate number of parts
+			const parts = Math.ceil(file.size / CHUNK_SIZE);
 
-	async function uploadChunk(chunk: Blob, filename: string, chunkIndex: number, totalSize: number) {
-		abortController = new AbortController();
+			// Initialize upload through server action
+			const formData = new FormData();
+			formData.append('title', title);
+			formData.append('fileName', file.name);
+			formData.append('fileType', file.type);
+			formData.append('parts', parts.toString());
 
-		// For MP4 files, skip compression to maintain file integrity
-		const shouldCompress = !filename.toLowerCase().endsWith('.mp4');
-		const processedChunk = shouldCompress ? await compressChunk(chunk) : chunk;
-		const checksum = await calculateChecksum(processedChunk);
-		const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+			const response = await fetch('?/initUpload', {
+				method: 'POST',
+				body: formData
+			});
 
-		console.log(`Uploading chunk details:`, {
-			chunkIndex,
-			chunkSize: processedChunk.size,
-			totalSize,
-			totalChunks,
-			isLastChunk: chunkIndex === totalChunks - 1,
-			isMP4: filename.toLowerCase().endsWith('.mp4')
-		});
-
-		const formData = new FormData();
-		formData.append('chunkIndex', chunkIndex.toString());
-		formData.append('totalSize', totalSize.toString());
-		formData.append('checksum', checksum);
-		formData.append('file', processedChunk, filename);
-		formData.append(
-			'compressed',
-			(shouldCompress && chunk.size !== processedChunk.size).toString()
-		);
-
-		const response = await fetch(data.apiUrl, {
-			method: 'POST',
-			body: formData,
-			signal: abortController?.signal,
-			headers: {
-				Authorization: `Bearer ${data.token}`
-			}
-		});
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`Upload failed: ${errorText}`);
-		}
-
-		return response;
-	}
-
-	async function uploadChunkWithRetry(
-		chunk: Blob,
-		filename: string,
-		chunkIndex: number,
-		totalSize: number
-	): Promise<Response> {
-		let lastError: Error | null = null;
-
-		for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-			try {
-				return await uploadChunk(chunk, filename, chunkIndex, totalSize);
-			} catch (error) {
-				lastError = error as Error;
-				if (error instanceof Error && error.name === 'AbortError') {
-					throw error;
-				}
-				console.warn(`Attempt ${attempt + 1} failed for chunk ${chunkIndex}:`, error);
-				if (attempt < MAX_RETRIES - 1) {
-					const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
-					await new Promise((resolve) => setTimeout(resolve, delay));
-				}
-			}
-		}
-		throw lastError || new Error('Upload failed after all retries');
-	}
-
-	async function uploadFile(selectedFile: File) {
-		uploading = true;
-		progress = 0;
-		errorMessage = null;
-		successMessage = null;
-
-		const totalChunks = Math.ceil(selectedFile.size / CHUNK_SIZE);
-		let completedChunks = 0;
-
-		const isMP4 = selectedFile.name.toLowerCase().endsWith('.mp4');
-
-		console.log(`File details:`, {
-			name: selectedFile.name,
-			size: selectedFile.size,
-			totalChunks,
-			chunkSize: CHUNK_SIZE,
-			isMP4
-		});
-
-		try {
-			const chunks = [];
-			let chunkIndex = 0;
-			for (let start = 0; start < selectedFile.size; start += CHUNK_SIZE) {
-				const end = Math.min(start + CHUNK_SIZE, selectedFile.size);
-				chunks.push({
-					chunk: selectedFile.slice(start, end, selectedFile.type),
-					index: chunkIndex++
-				});
+			const result = await response.json();
+			if (result.error) {
+				throw new Error(result.error);
 			}
 
-			// For MP4 files, use semi-sequential uploads with controlled concurrency
-			if (isMP4) {
-				const windowSize = 3; // Number of chunks to upload in parallel for MP4
-				for (let i = 0; i < chunks.length && !paused; i += windowSize) {
-					const batch = chunks.slice(i, i + windowSize);
-					const uploadPromises = batch.map(({ chunk, index }) =>
-						uploadChunkWithRetry(chunk, selectedFile.name, index, selectedFile.size)
-					);
+			const { upload_id, video_id, key, part_urls } = result.data as UploadInitResponse;
 
-					await Promise.all(uploadPromises);
-					completedChunks += batch.length;
-					progress = (completedChunks / totalChunks) * 100;
+			// Upload parts in parallel directly to presigned URLs
+			const completedParts = await Promise.all(
+				part_urls.map(async ({ part_number, url }, index) => {
+					// Check if file is still available
+					if (!file) {
+						throw new Error('File was removed during upload');
+					}
+					const start = index * CHUNK_SIZE;
+					const end = Math.min(start + CHUNK_SIZE, file.size);
+					const chunk = file.slice(start, end);
 
-					console.log(
-						`Completed ${completedChunks}/${totalChunks} chunks (${progress.toFixed(2)}%)`
-					);
-				}
-			} else {
-				// For non-MP4 files, use full parallel uploads
-				for (let i = 0; i < chunks.length && !paused; i += MAX_CONCURRENT_UPLOADS) {
-					const batch = chunks.slice(i, i + MAX_CONCURRENT_UPLOADS);
-					const uploadPromises = batch.map(({ chunk, index }) =>
-						uploadChunkWithRetry(chunk, selectedFile.name, index, selectedFile.size)
-					);
+					const response = await fetch(url, {
+						method: 'PUT',
+						body: chunk
+					});
 
-					await Promise.all(uploadPromises);
-					completedChunks += batch.length;
-					progress = (completedChunks / totalChunks) * 100;
-				}
-			}
+					if (!response.ok) {
+						throw new Error(`Failed to upload part ${part_number}`);
+					}
 
-			if (!paused) {
-				if (completedChunks !== totalChunks) {
-					throw new Error(`Upload incomplete: ${completedChunks}/${totalChunks} chunks uploaded`);
-				}
+					const etag = response.headers.get('ETag')?.replaceAll('"', '');
+					if (!etag) throw new Error('No ETag received');
 
-				uploading = false;
-				progress = 100;
-				successMessage = `Successfully uploaded ${selectedFile.name}`;
-				// Clear the file after successful upload
-				file = null;
-			}
-		} catch (error) {
-			console.error('Upload error:', error);
-			if (error instanceof Error) {
-				if (error.name === 'AbortError') {
-					console.log('Upload paused');
-				} else {
-					errorMessage = error.message;
-					uploading = false;
-					// Clear the file on error
-					file = null;
-				}
-			} else {
-				errorMessage = 'An unknown error occurred';
-				uploading = false;
-				// Clear the file on error
-				file = null;
-			}
-		}
-	}
+					// Update progress
+					uploadProgress = ((index + 1) / parts) * 100;
 
-	function handleFileSelect(event: Event) {
-		const input = event.target as HTMLInputElement;
-		if (input.files && input.files[0]) {
-			resetState();
-			const selectedFile = input.files[0];
-			if (!selectedFile.type.startsWith('video/')) {
-				errorMessage = 'Please select a video file';
-				return;
-			}
-
-			const validExtensions = ['.mp4'];
-			const hasValidExtension = validExtensions.some((ext) =>
-				selectedFile.name.toLowerCase().endsWith(ext)
+					return {
+						number: part_number,
+						etag
+					};
+				})
 			);
 
-			if (!hasValidExtension) {
-				errorMessage = 'Only .mp4 files are allowed';
-				return;
+			// Complete the upload through server action
+			const completeForm = new FormData();
+			completeForm.append('upload_id', upload_id);
+			completeForm.append('video_id', video_id);
+			completeForm.append('key', key);
+			completeForm.append('completed_parts', JSON.stringify(completedParts));
+
+			const completeResponse = await fetch('?/completeUpload', {
+				method: 'POST',
+				body: completeForm
+			});
+
+			const completeResult = await completeResponse.json();
+			if (completeResult.error) {
+				throw new Error(completeResult.error);
 			}
-			file = selectedFile;
-			errorMessage = null;
+
+			// Reset form
+			file = null;
+			title = '';
+			uploadProgress = 0;
+			alert('Upload successful! Video is being processed.');
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Upload failed';
+			console.error(err);
+		} finally {
+			isUploading = false;
 		}
 	}
-
-	function togglePause() {
-		paused = !paused;
-		if (!paused && file) {
-			uploadFile(file);
-		} else if (abortController) {
-			abortController.abort();
-		}
-	}
-
-	onDestroy(() => {
-		if (abortController) {
-			abortController.abort();
-		}
-	});
 </script>
 
-<section class="flex flex-col items-center justify-center">
-	<aside class="flex min-w-[50%] flex-col space-y-4 text-center">
-		<h1 class="font-serif text-2xl text-secondary-700 dark:text-primary-500">Upload</h1>
-		<p class="text-secondary-800 dark:text-primary-100">Upload your latest livestream or replay</p>
+<div class="mx-auto max-w-2xl p-6">
+	<h1 class="mb-8 text-3xl font-bold">Upload Video</h1>
 
-		<!-- Upload UI -->
-		<div class="flex w-full flex-col space-y-4">
-			<label
-				class="flex cursor-pointer flex-col items-center rounded-lg border border-primary-200 bg-white px-4 py-6 tracking-wide text-primary-800 shadow-lg transition-colors hover:bg-primary-50 dark:border-primary-900 dark:bg-primary-800 dark:text-primary-200 dark:hover:bg-primary-900"
-			>
-				<svg
-					class="h-8 w-8"
-					fill="currentColor"
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 20 20"
-				>
-					<path
-						d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z"
-					/>
-				</svg>
-				<span class="mt-2 text-base">Select a video file (.mp4)</span>
-				<input
-					type="file"
-					class="hidden"
-					accept="video/mp4"
-					onchange={handleFileSelect}
-					disabled={uploading}
-				/>
+	<form on:submit|preventDefault={handleUpload} class="space-y-6">
+		<div>
+			<label for="title" class="mb-2 block text-sm font-medium text-gray-700">
+				Title (optional)
 			</label>
-
-			{#if file}
-				<div class="mt-4 rounded-lg bg-white p-4 shadow dark:bg-primary-900">
-					<p class="font-medium">Selected file: {file.name}</p>
-					<p class="text-sm">Size: {filesize(file.size)}</p>
-
-					{#if !uploading}
-						<button
-							class="mt-4 rounded bg-primary-600 px-4 py-2 text-white transition-colors hover:bg-primary-700"
-							onclick={() => file && uploadFile(file)}
-						>
-							Start Upload
-						</button>
-					{/if}
-				</div>
-			{/if}
-
-			{#if uploading}
-				<div class="mt-4 space-y-2">
-					<div class="h-2.5 w-full rounded-full bg-gray-200">
-						<div
-							class="h-2.5 rounded-full bg-primary-600 transition-all duration-300"
-							style="width: {progress}%"
-						></div>
-					</div>
-					<div class="flex justify-between text-sm text-gray-600">
-						<span>{progress.toFixed(1)}%</span>
-						<button class="text-primary-600 hover:text-primary-800" onclick={togglePause}>
-							{paused ? 'Resume' : 'Pause'}
-						</button>
-					</div>
-				</div>
-			{/if}
-
-			{#if errorMessage}
-				<Alert type="error" message={errorMessage} />
-			{/if}
-
-			{#if successMessage}
-				<Alert type="success" message={successMessage} />
-			{/if}
+			<input
+				type="text"
+				id="title"
+				bind:value={title}
+				disabled={isUploading}
+				class="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+			/>
 		</div>
-	</aside>
-</section>
+
+		<div>
+			<label for="file" class="mb-2 block text-sm font-medium text-gray-700"> Video File </label>
+			<input
+				type="file"
+				id="file"
+				accept="video/*"
+				on:change={(e) => (file = e.currentTarget.files?.[0] || null)}
+				disabled={isUploading}
+				class="w-full text-sm text-gray-500 file:mr-4 file:rounded-md file:border-0 file:bg-blue-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-blue-700 hover:file:bg-blue-100"
+			/>
+		</div>
+
+		{#if isUploading}
+			<div class="h-2.5 w-full rounded-full bg-gray-200">
+				<div
+					class="h-2.5 rounded-full bg-blue-600 transition-all duration-300"
+					style="width: {uploadProgress}%"
+				></div>
+			</div>
+			<p class="text-center text-sm text-gray-600">
+				{Math.round(uploadProgress)}% uploaded
+			</p>
+		{/if}
+
+		{#if error}
+			<div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+				{error}
+			</div>
+		{/if}
+
+		<button
+			type="submit"
+			disabled={!file || isUploading}
+			class="flex w-full justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:bg-gray-300"
+		>
+			{isUploading ? 'Uploading...' : 'Upload Video'}
+		</button>
+	</form>
+</div>
