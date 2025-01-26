@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{prelude::FromRow, PgPool};
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Serialize, Deserialize, FromRow, Clone)]
 pub struct Video {
     pub id: String,
     pub user_id: Uuid,
@@ -15,7 +15,7 @@ pub struct Video {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone)]
 #[sqlx(type_name = "processing_status", rename_all = "lowercase")]
 pub enum ProcessingStatus {
     Pending,

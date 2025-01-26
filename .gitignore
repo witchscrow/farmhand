@@ -5,3 +5,4 @@ target/
 !.env.example
 uploads/
 /videos
+storage/

@@ -6,13 +6,14 @@ use db::{DBPool, Video};
 
 pub mod stream;
 
+#[derive(Clone)]
 pub struct Vod {
-    video: Video,
+    pub video: Video,
 }
 
 pub struct DownloadSettings {
-    client: Client,
-    bucket: String,
+    pub client: Client,
+    pub bucket: String,
 }
 
 impl Vod {
@@ -29,7 +30,7 @@ impl Vod {
         &self,
         target_folder: PathBuf,
         download_settings: Option<DownloadSettings>,
-    ) -> Result<PathBuf, anyhow::Error> {
+    ) -> Result<Option<PathBuf>, anyhow::Error> {
         if !target_folder.is_dir() {
             return Err(anyhow!("Path is not a directory"));
         }
@@ -49,13 +50,11 @@ impl Vod {
             if let Some(settings) = download_settings {
                 self.download_raw(settings, &local_file_path).await?;
             } else {
-                return Err(anyhow!(
-                    "Video does not exist locally, skipping downloading"
-                ));
+                return Ok(None);
             }
         }
 
-        Ok(local_file_path)
+        Ok(Some(local_file_path))
     }
     /// Downloads the raw video from S3 to the target path
     pub async fn download_raw(

@@ -10,6 +10,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 use vod::stream::{HLSConverter, Quality};
+use vod::{DownloadSettings, Vod};
 use zip::{write::FileOptions, ZipWriter};
 
 /// Runs a loop that pulls jobs from the queue and runs <concurrency> jobs each loop
@@ -69,15 +70,24 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
             .await?;
 
             // Download the video
-            let video_download = tokio::spawn(async move {});
-            // Get video details
-            let video = sqlx::query_as::<_, Video>("SELECT * FROM videos WHERE id = $1")
-                .bind(&video_id)
-                .fetch_one(db)
-                .await?;
-
+            let vod = Vod::by_id(db, video_id)
+                .await
+                .expect("Could not get vod by id");
+            let video_storage_folder = PathBuf::from(get_storage_dir());
+            let download_settings = DownloadSettings {
+                client: common::s3::create_s3_client().await,
+                bucket: std::env::var("UPLOAD_BUCKET")
+                    .expect("Could not get UPLOAD_BUCKET from environment"),
+            };
+            let video_path = vod
+                .clone()
+                .get_raw_video(video_storage_folder, Some(download_settings))
+                .await
+                .expect("Could not get raw video")
+                .expect("No video path found");
+            tracing::debug!("Video located at {:?}", video_path);
             // Create output directory
-            let output_dir = PathBuf::from(get_videos_dir()).join(&video_id.to_string());
+            let output_dir = PathBuf::from(get_storage_dir()).join(&vod.video.id.to_string());
             let ffmpeg_location = get_ffmpeg_location();
 
             // Initialize HLS converter
@@ -98,7 +108,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
 
             // Process the video
             converter
-                .convert_to_hls(&video.raw_video_path, qualities)
+                .convert_to_hls(&video_path, qualities)
                 .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
 
             // Update with success status
@@ -111,7 +121,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
                 WHERE id = $2",
             )
             .bind(master_playlist_path.to_str().unwrap())
-            .bind(&video_id)
+            .bind(&vod.video.id)
             .execute(db)
             .await?;
 
@@ -120,7 +130,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
             queue
                 .push(
                     Message::CompressRawVideo {
-                        video_id: video_id.clone(),
+                        video_id: vod.video.id.clone(),
                     },
                     PostgresJobStatus::Queued,
                     Some(scheduled_time),
@@ -129,7 +139,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
 
             tracing::info!(
                 "Successfully processed video {} and queued compression job",
-                &video_id
+                &vod.video.id
             );
         }
         Message::CompressRawVideo { video_id } => {
@@ -152,7 +162,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
                     .await?;
 
                 // Create video-specific directory if it doesn't exist
-                let videos_dir = PathBuf::from(get_videos_dir());
+                let videos_dir = PathBuf::from(get_storage_dir());
                 let video_dir = videos_dir.join(&video_id.to_string());
                 fs::create_dir_all(&video_dir)
                     .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
@@ -255,6 +265,8 @@ fn get_ffmpeg_location() -> String {
 }
 
 /// Get the directory for where to store videos
-fn get_videos_dir() -> String {
-    std::env::var("VIDEOS_DIR").unwrap_or_else(|_| "videos".to_string())
+fn get_storage_dir() -> String {
+    let storage_dir = std::env::var("STORAGE").unwrap_or_else(|_| "storage/".to_string());
+    std::fs::create_dir_all(&storage_dir).unwrap();
+    storage_dir
 }

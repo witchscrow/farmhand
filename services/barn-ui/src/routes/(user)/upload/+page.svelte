@@ -81,6 +81,67 @@
 		return completedParts;
 	}
 
+	async function uploadParallel(parts: PartUrl[], file: File, concurrency = 3) {
+		const completedParts: Array<{ number: number; etag?: string }> = [];
+		const totalParts = parts.length;
+		let processedParts = 0;
+
+		// Process parts in batches
+		for (let i = 0; i < totalParts; i += concurrency) {
+			const batch = parts.slice(i, i + concurrency);
+			const uploadPromises = batch.map(async ({ part_number, url }) => {
+				const start = (part_number - 1) * CHUNK_SIZE;
+				const end = Math.min(start + CHUNK_SIZE, file.size);
+				const chunk = file.slice(start, end);
+
+				// Add retry logic
+				let attempts = 0;
+				const maxAttempts = 3;
+
+				while (attempts < maxAttempts) {
+					try {
+						const response = await fetch(url, {
+							method: 'PUT',
+							body: chunk
+						});
+
+						if (!response.ok) {
+							throw new Error(`Failed to upload part ${part_number}`);
+						}
+
+						const etag = response.headers.get('ETag')?.replaceAll('"', '');
+
+						return {
+							number: part_number,
+							etag
+						};
+					} catch (error) {
+						attempts++;
+						if (attempts === maxAttempts) {
+							throw error; // Rethrow if all attempts failed
+						}
+						// Wait before retrying
+						await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
+					}
+				}
+				throw new Error(`Failed to upload part ${part_number} after all attempts`);
+			});
+
+			// Wait for all parts in the current batch to complete
+			const results = await Promise.all(uploadPromises);
+			completedParts.push(...results);
+
+			// Update progress
+			processedParts += batch.length;
+			uploadProgress = (processedParts / totalParts) * 100;
+		}
+
+		// Sort completed parts by part number
+		completedParts.sort((a, b) => a.number - b.number);
+
+		return completedParts;
+	}
+
 	async function handleUpload() {
 		if (!file) return;
 
@@ -110,7 +171,7 @@
 
 			const { upload_id, video_id, key, part_urls } = result.data as UploadInitResponse;
 			// Upload parts in controlled batches
-			const completedParts = await uploadSequentially(part_urls, file);
+			const completedParts = await uploadParallel(part_urls, file);
 			// Complete the upload through server action
 			const completeForm = new FormData();
 			completeForm.append('upload_id', upload_id);
