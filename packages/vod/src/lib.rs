@@ -60,6 +60,7 @@ impl Vod {
 
         let local_file_path = target_folder.join(&self.video.id).join(&file_key);
         if !local_file_path.exists() {
+            tracing::debug!("Local video not found at {:?}", &local_file_path);
             if let Some(settings) = download_settings {
                 self.download_raw(settings, &local_file_path).await?;
             } else {
@@ -67,6 +68,7 @@ impl Vod {
             }
         }
 
+        tracing::debug!("Local video available at {:?}", local_file_path);
         Ok(Some(local_file_path))
     }
     /// Downloads the raw video from S3 to the target path

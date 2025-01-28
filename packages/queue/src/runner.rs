@@ -110,6 +110,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
                 output_dir,
                 &bucket,
                 &vod.get_remote_storage_prefix(),
+                &[".mp4"],
             )
             .await
             .map_err(|e| anyhow!("Could not sync stream files to S3: {}", e));

@@ -21,6 +21,7 @@ pub async fn sync_directory_to_bucket<P: AsRef<std::path::Path>>(
     local_dir: P,
     bucket: &str,
     target_prefix: &str,
+    ignore_patterns: &[&str],
 ) -> Result<(), Box<dyn std::error::Error>> {
     let local_dir = local_dir.as_ref();
     if !local_dir.is_dir() {
@@ -31,6 +32,13 @@ pub async fn sync_directory_to_bucket<P: AsRef<std::path::Path>>(
 
     for entry in walk_dir.into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
+        if ignore_patterns
+            .iter()
+            .any(|pattern| path.to_string_lossy().contains(pattern))
+        {
+            tracing::debug!("Skipping {:?}", path);
+            continue;
+        }
         if path.is_file() {
             let relative_path = path
                 .strip_prefix(local_dir)
