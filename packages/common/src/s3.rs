@@ -15,3 +15,43 @@ pub async fn create_s3_client() -> Client {
 
     Client::new(&config)
 }
+
+pub async fn sync_directory_to_bucket<P: AsRef<std::path::Path>>(
+    client: &Client,
+    local_dir: P,
+    bucket: &str,
+    target_prefix: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let local_dir = local_dir.as_ref();
+    if !local_dir.is_dir() {
+        return Err("Source path is not a directory".into());
+    }
+
+    let walk_dir = walkdir::WalkDir::new(local_dir);
+
+    for entry in walk_dir.into_iter().filter_map(|e| e.ok()) {
+        let path = entry.path();
+        if path.is_file() {
+            let relative_path = path
+                .strip_prefix(local_dir)
+                .map_err(|e| format!("Failed to strip prefix: {}", e))?;
+            let key = if target_prefix.is_empty() {
+                relative_path.to_string_lossy().to_string()
+            } else {
+                format!("{}/{}", target_prefix, relative_path.to_string_lossy())
+            };
+
+            let body = aws_sdk_s3::primitives::ByteStream::from_path(path).await?;
+            tracing::debug!("full key from walkdir {key}");
+            client
+                .put_object()
+                .bucket(bucket)
+                .key(&key)
+                .body(body)
+                .send()
+                .await?;
+        }
+    }
+
+    Ok(())
+}

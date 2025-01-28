@@ -49,15 +49,13 @@ pub async fn init_upload(
         .clone()
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
     tracing::trace!("Bucket found {}", &bucket);
-
-    // TODO: Construct the key to be in a users directory
-    // Example key for file `example_video.mp4` for user id `1234`
-    //  `uploads/1234/video_id.mp4`
     let video_id = Video::gen_id();
     // Get the file extension from the original key
     let extension = request.key.split('.').last().unwrap_or("");
-    let key = format!("uploads/{}/{}.{}", user.id, video_id, extension);
-
+    let storage_root = common::get_storage_dir();
+    let storage_path = format!("{}/{}", storage_root, video_id);
+    let key = format!("{}/raw.{}", storage_path, extension);
+    tracing::debug!("Full parsed key: {key}");
     // Start multipart upload on R2's side
     let start_upload_output = state
         .s3_client
@@ -158,10 +156,11 @@ pub async fn complete_upload(
     let _user = user.ok_or(StatusCode::UNAUTHORIZED)?;
     // First, let R2 know we've completed the upload
     tracing::trace!("Grabbing bucket");
-    let bucket = state.config.upload_bucket.clone().ok_or({
-        tracing::error!("Could not get upload bucket");
-        StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    let bucket = state
+        .config
+        .upload_bucket
+        .clone()
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)?;
     tracing::trace!("Bucket found {}", bucket);
 
     let serialized_completed_parts = request

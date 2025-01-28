@@ -52,9 +52,10 @@ impl VideoFormat {
     }
 }
 
+#[derive(Clone)]
 pub struct HLSConverter {
-    ffmpeg_path: PathBuf,
-    output_dir: PathBuf,
+    pub ffmpeg_path: PathBuf,
+    pub output_dir: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -234,12 +235,13 @@ impl HLSConverter {
             let playlist_name = format!("{}.m3u8", output_name);
             let segment_pattern = format!("{}_segment_%03d.ts", output_name);
 
-            // Add to variant playlist
+            // Add to variant playlist with updated path that includes quality directory
             master_playlist.push_str(&format!(
-                "#EXT-X-STREAM-INF:BANDWIDTH={},RESOLUTION={}x{},NAME=\"{}\"\n{}\n",
+                "#EXT-X-STREAM-INF:BANDWIDTH={},RESOLUTION={}x{},NAME=\"{}\"\n{}/{}\n",
                 quality.bitrate.replace("k", "000"),
                 quality.width,
                 quality.height,
+                quality.name,
                 quality.name,
                 playlist_name
             ));
@@ -261,7 +263,7 @@ impl HLSConverter {
             })?;
         }
 
-        // Write master playlist
+        // Write master playlist in the root output directory
         std::fs::write(self.output_dir.join("master.m3u8"), master_playlist)
             .context("Failed to write master playlist")?;
 
@@ -277,6 +279,11 @@ impl HLSConverter {
         segment_pattern: &str,
         format: &VideoFormat,
     ) -> Result<()> {
+        // Create quality-specific directory
+        let quality_dir = self.output_dir.join(&quality.name);
+        std::fs::create_dir_all(&quality_dir)
+            .context("Failed to create quality-specific directory")?;
+
         let mut command = Command::new(&self.ffmpeg_path);
 
         command.arg("-i").arg(input_path);
@@ -340,8 +347,8 @@ impl HLSConverter {
 
         command
             .arg("-hls_segment_filename")
-            .arg(self.output_dir.join(segment_pattern))
-            .arg(self.output_dir.join(playlist_name));
+            .arg(quality_dir.join(segment_pattern))
+            .arg(quality_dir.join(playlist_name));
 
         debug!("FFmpeg command: {:?}", command);
 
@@ -374,4 +381,17 @@ impl HLSConverter {
             .unwrap_or("Unknown version")
             .to_string())
     }
+}
+
+/// Get the path to ffmpeg
+pub fn get_ffmpeg_location() -> PathBuf {
+    let env_ffmpeg_path = PathBuf::from(
+        std::env::var("FFMPEG_LOCATION").unwrap_or_else(|_| "/usr/bin/ffmpeg".to_string()),
+    );
+
+    if !env_ffmpeg_path.exists() {
+        panic!("FFmpeg not found at path: {:?}", env_ffmpeg_path);
+    }
+
+    env_ffmpeg_path
 }

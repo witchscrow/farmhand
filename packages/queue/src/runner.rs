@@ -1,6 +1,9 @@
 use crate::error::Error;
 use crate::job::PostgresJobStatus;
 use crate::queue::{Job, Message, Queue};
+use anyhow::anyhow;
+use common::get_storage_dir;
+use common::s3::sync_directory_to_bucket;
 use db::Video;
 use futures::{stream, StreamExt};
 use sqlx::{Pool, Postgres};
@@ -9,7 +12,7 @@ use std::io::Write;
 use std::{path::PathBuf, sync::Arc, time::Duration};
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
-use vod::stream::{HLSConverter, Quality};
+use vod::stream::Quality;
 use vod::{DownloadSettings, Vod};
 use zip::{write::FileOptions, ZipWriter};
 
@@ -70,14 +73,17 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
             .await?;
 
             // Download the video
-            let vod = Vod::by_id(db, video_id)
+            let s3_client = common::s3::create_s3_client().await;
+            let output_dir = PathBuf::from(get_storage_dir()).join(video_id.clone());
+            let vod = Vod::by_id(db, video_id, output_dir.clone())
                 .await
                 .expect("Could not get vod by id");
             let video_storage_folder = PathBuf::from(get_storage_dir());
+            let bucket = std::env::var("UPLOAD_BUCKET")
+                .expect("Could not get UPLOAD_BUCKET from environment");
             let download_settings = DownloadSettings {
-                client: common::s3::create_s3_client().await,
-                bucket: std::env::var("UPLOAD_BUCKET")
-                    .expect("Could not get UPLOAD_BUCKET from environment"),
+                client: &s3_client,
+                bucket: &bucket,
             };
             let video_path = vod
                 .clone()
@@ -85,19 +91,6 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
                 .await
                 .expect("Could not get raw video")
                 .expect("No video path found");
-            tracing::debug!("Video located at {:?}", video_path);
-            // Create output directory
-            let output_dir = PathBuf::from(get_storage_dir()).join(&vod.video.id.to_string());
-            let ffmpeg_location = get_ffmpeg_location();
-
-            // Initialize HLS converter
-            let converter = HLSConverter::new(
-                ffmpeg_location.as_str(),
-                output_dir
-                    .to_str()
-                    .expect("Could not convert output dir to path string"),
-            )
-            .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
 
             // Define quality levels
             let qualities = vec![
@@ -106,13 +99,22 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
                 Quality::new(854, 480, "1400k", "480p"),
             ];
 
-            // Process the video
-            converter
+            // Process the video into stream files
+            let _ = &vod
+                .converter
                 .convert_to_hls(&video_path, qualities)
                 .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
-
+            // Upload the files to S3
+            let _ = sync_directory_to_bucket(
+                &s3_client,
+                output_dir,
+                &bucket,
+                &vod.get_remote_storage_prefix(),
+            )
+            .await
+            .map_err(|e| anyhow!("Could not sync stream files to S3: {}", e));
             // Update with success status
-            let master_playlist_path = output_dir.join("master.m3u8");
+            let master_playlist_path = &vod.converter.output_dir.join("master.m3u8");
             sqlx::query(
                 "UPDATE videos SET
                     processing_status = 'completed',
@@ -162,7 +164,7 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
                     .await?;
 
                 // Create video-specific directory if it doesn't exist
-                let videos_dir = PathBuf::from(get_storage_dir());
+                let videos_dir = PathBuf::from(common::get_storage_dir());
                 let video_dir = videos_dir.join(&video_id.to_string());
                 fs::create_dir_all(&video_dir)
                     .map_err(|e| Error::VideoProcessingError(e.to_string()))?;
@@ -257,16 +259,4 @@ async fn handle_job(queue: Arc<dyn Queue>, job: Job, db: &Pool<Postgres>) -> Res
     }
 
     Ok(())
-}
-
-/// Get the path to ffmpeg
-fn get_ffmpeg_location() -> String {
-    std::env::var("FFMPEG_LOCATION").unwrap_or_else(|_| "/usr/bin/ffmpeg".to_string())
-}
-
-/// Get the directory for where to store videos
-fn get_storage_dir() -> String {
-    let storage_dir = std::env::var("STORAGE").unwrap_or_else(|_| "storage/".to_string());
-    std::fs::create_dir_all(&storage_dir).unwrap();
-    storage_dir
 }

@@ -13,6 +13,7 @@ start-queue:
 # Development commands
 dev-api: start-api
 
+dev-ui: dev-web
 dev-web:
     yarn dev
 

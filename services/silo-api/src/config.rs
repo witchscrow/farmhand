@@ -28,7 +28,7 @@ impl Config {
     }
     /// Gets the upload directory from environment variables and initializes it
     pub fn get_upload_dir() -> Option<String> {
-        match std::env::var("UPLOAD_DIR") {
+        match std::env::var("STORAGE") {
             Ok(dir) => {
                 std::fs::create_dir_all(&dir).expect("Failed to create upload directory");
                 Some(dir)
