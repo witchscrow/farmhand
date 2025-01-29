@@ -1,10 +1,6 @@
 <script lang="ts">
-	import Form from '$lib/components/Form.svelte';
-	import Input from '$lib/components/Input.svelte';
 	import BrandButton from '$lib/components/BrandButton.svelte';
-	import type { ActionData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
 	const prefix = 'Register with';
 </script>
 
