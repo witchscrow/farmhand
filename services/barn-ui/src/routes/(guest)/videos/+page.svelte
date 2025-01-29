@@ -12,7 +12,7 @@
 	}
 </script>
 
-<section class="mx-auto max-w-4xl space-y-6 p-4">
+<section class="mx-auto w-full max-w-4xl space-y-6 p-4">
 	<div class="space-y-2 text-center">
 		<h1 class="font-serif text-2xl text-secondary-700 dark:text-primary-500">Videos</h1>
 		<p class="text-secondary-800 dark:text-primary-100">Browse and manage your uploaded videos</p>
