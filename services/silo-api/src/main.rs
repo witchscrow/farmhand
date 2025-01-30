@@ -3,7 +3,6 @@ mod config;
 mod jwt;
 mod middleware;
 mod routes;
-mod s3;
 
 pub use app_state::AppState;
 use axum::{
@@ -15,6 +14,7 @@ use axum::{
 };
 use config::Config;
 use reqwest::StatusCode;
+
 use serde_json::json;
 
 use std::sync::Arc;
