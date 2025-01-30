@@ -8,3 +8,5 @@ data:
   FFMPEG_LOCATION: "/opt/homebrew/bin/ffmpeg" # TODO: Make this is the right path for docker context
   TWITCH_REDIRECT_URI: "https://staging.api.farmhand.witchscrow.com/auth/twitch/callback"
   LOG_LEVEL: "api=debug"
+  STORAGE: "videos/staging" # TODO: Make this dynamic per environment
+  UPLOAD_BUCKET: "farmhand"

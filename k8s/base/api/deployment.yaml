@@ -35,6 +35,21 @@ spec:
                 secretKeyRef:
                   name: farmhand-twitch-credentials
                   key: client-secret
+            - name: R2_ACCOUNT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: farmhand-cloudflare-credentials
+                  key: account-id
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: farmhand-cloudflare-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: farmhand-cloudflare-credentials
+                  key: secret-access-key
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

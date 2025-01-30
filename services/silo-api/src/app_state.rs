@@ -3,7 +3,8 @@ use std::sync::Arc;
 use queue::{PostgresQueue, Queue};
 use sqlx::PgPool;
 
-use crate::{config::Config, s3::create_s3_client};
+use crate::config::Config;
+use common::s3::create_s3_client;
 
 /// Shared state available to the API
 pub struct AppState {

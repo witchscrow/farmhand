@@ -4,3 +4,4 @@ metadata:
   name: farmhand-queue-config
 data:
   LOG_LEVEL: "queue=debug"
+  STORAGE: "videos/staging"
