@@ -51,7 +51,6 @@ async fn main() {
     // Initialize our router with the shared state and required routes
     let app = Router::new()
         .route("/", get(index))
-        .route("/delete-videos", get(delete_all_files))
         .nest(
             "/auth",
             Router::new()
@@ -142,94 +141,96 @@ async fn index() -> impl IntoResponse {
     "Welcome to the farmhand api"
 }
 
-pub async fn delete_all_files(
-    State(state): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let client = &state.s3_client;
-    let bucket = std::env::var("UPLOAD_BUCKET").expect("UPLOAD_BUCKET required");
+// Deletes all files from cloudflare
+// TODO: Move to a script and make environment specific
+// pub async fn delete_all_files(
+//     State(state): State<Arc<AppState>>,
+// ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+//     let client = &state.s3_client;
+//     let bucket = std::env::var("UPLOAD_BUCKET").expect("UPLOAD_BUCKET required");
 
-    // First, abort all multipart uploads
-    let multipart_uploads = client
-        .list_multipart_uploads()
-        .bucket(&bucket)
-        .send()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": format!("Failed to list multipart uploads: {}", e) })),
-            )
-        })?;
+//     // First, abort all multipart uploads
+//     let multipart_uploads = client
+//         .list_multipart_uploads()
+//         .bucket(&bucket)
+//         .send()
+//         .await
+//         .map_err(|e| {
+//             (
+//                 StatusCode::INTERNAL_SERVER_ERROR,
+//                 Json(json!({ "error": format!("Failed to list multipart uploads: {}", e) })),
+//             )
+//         })?;
 
-    let uploads = multipart_uploads.uploads();
-    for upload in uploads {
-        if let (Some(key), Some(upload_id)) = (upload.key(), upload.upload_id()) {
-            client
-                .abort_multipart_upload()
-                .bucket(&bucket)
-                .key(key)
-                .upload_id(upload_id)
-                .send()
-                .await
-                .map_err(|e| {
-                    (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        Json(
-                            json!({ "error": format!("Failed to abort multipart upload: {}", e) }),
-                        ),
-                    )
-                })?;
-        }
-    }
+//     let uploads = multipart_uploads.uploads();
+//     for upload in uploads {
+//         if let (Some(key), Some(upload_id)) = (upload.key(), upload.upload_id()) {
+//             client
+//                 .abort_multipart_upload()
+//                 .bucket(&bucket)
+//                 .key(key)
+//                 .upload_id(upload_id)
+//                 .send()
+//                 .await
+//                 .map_err(|e| {
+//                     (
+//                         StatusCode::INTERNAL_SERVER_ERROR,
+//                         Json(
+//                             json!({ "error": format!("Failed to abort multipart upload: {}", e) }),
+//                         ),
+//                     )
+//                 })?;
+//         }
+//     }
 
-    // Then delete all complete objects
-    let objects = client
-        .list_objects_v2()
-        .bucket(&bucket)
-        .send()
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({ "error": format!("Failed to list objects: {}", e) })),
-            )
-        })?;
+//     // Then delete all complete objects
+//     let objects = client
+//         .list_objects_v2()
+//         .bucket(&bucket)
+//         .send()
+//         .await
+//         .map_err(|e| {
+//             (
+//                 StatusCode::INTERNAL_SERVER_ERROR,
+//                 Json(json!({ "error": format!("Failed to list objects: {}", e) })),
+//             )
+//         })?;
 
-    // If there are objects to delete
-    if !objects.contents().is_empty() {
-        // Prepare objects for deletion
-        let objects_to_delete: Vec<_> = objects
-            .contents()
-            .iter()
-            .filter_map(|obj| {
-                obj.key().map(|k| {
-                    aws_sdk_s3::types::ObjectIdentifier::builder()
-                        .key(k)
-                        .build()
-                        .expect("Could not build object identifier")
-                })
-            })
-            .collect();
+//     // If there are objects to delete
+//     if !objects.contents().is_empty() {
+//         // Prepare objects for deletion
+//         let objects_to_delete: Vec<_> = objects
+//             .contents()
+//             .iter()
+//             .filter_map(|obj| {
+//                 obj.key().map(|k| {
+//                     aws_sdk_s3::types::ObjectIdentifier::builder()
+//                         .key(k)
+//                         .build()
+//                         .expect("Could not build object identifier")
+//                 })
+//             })
+//             .collect();
 
-        // Delete the objects
-        client
-            .delete_objects()
-            .bucket(&bucket)
-            .delete(
-                aws_sdk_s3::types::Delete::builder()
-                    .set_objects(Some(objects_to_delete))
-                    .build()
-                    .expect("Could not build deleter"),
-            )
-            .send()
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({ "error": format!("Failed to delete objects: {}", e) })),
-                )
-            })?;
-    }
+//         // Delete the objects
+//         client
+//             .delete_objects()
+//             .bucket(&bucket)
+//             .delete(
+//                 aws_sdk_s3::types::Delete::builder()
+//                     .set_objects(Some(objects_to_delete))
+//                     .build()
+//                     .expect("Could not build deleter"),
+//             )
+//             .send()
+//             .await
+//             .map_err(|e| {
+//                 (
+//                     StatusCode::INTERNAL_SERVER_ERROR,
+//                     Json(json!({ "error": format!("Failed to delete objects: {}", e) })),
+//                 )
+//             })?;
+//     }
 
-    Ok(Json(json!({ "message": "All files deleted successfully" })))
-}
+//     Ok(Json(json!({ "message": "All files deleted successfully" })))
+// }
