@@ -42,7 +42,7 @@ pub async fn get_videos(
     video_query: Option<Query<VideoByID>>,
     username_query: Option<Query<VideoByUserName>>,
 ) -> impl IntoResponse {
-    tracing::debug!(
+    tracing::trace!(
         "Got video get query params:\n\tvideo_query: {:?}\n\tusername_query: {:?}",
         video_query,
         username_query

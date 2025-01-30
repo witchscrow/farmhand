@@ -19,8 +19,10 @@
 	let isUploading = $state(false);
 	let error: string | null = $state(null);
 	let title = $state('');
+	let uploadSpeed = $state(0);
+	let currentUpload: AbortController | null = $state(null);
 
-	const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+	const CHUNK_MB = 5 * 1024 * 1024;
 
 	function handleFileSelect(event: Event): void {
 		const target = event.target as HTMLInputElement;
@@ -30,127 +32,152 @@
 		}
 	}
 
-	async function uploadSequentially(parts: PartUrl[], file: File) {
-		const completedParts: Array<{ number: number; etag?: string }> = [];
-		const totalParts = parts.length;
-
-		// Process parts one at a time
-		for (let i = 0; i < totalParts; i++) {
-			const { part_number, url } = parts[i];
-			const start = i * CHUNK_SIZE;
-			const end = Math.min(start + CHUNK_SIZE, file.size);
-			const chunk = file.slice(start, end);
-
-			// Add retry logic
-			let attempts = 0;
-			const maxAttempts = 3;
-
-			while (attempts < maxAttempts) {
-				try {
-					const response = await fetch(url, {
-						method: 'PUT',
-						body: chunk
-					});
-
-					if (!response.ok) {
-						throw new Error(`Failed to upload part ${part_number}`);
-					}
-
-					const etag = response.headers.get('ETag')?.replaceAll('"', '');
-
-					completedParts.push({
-						number: part_number,
-						etag
-					});
-
-					// Update progress
-					uploadProgress = ((i + 1) / totalParts) * 100;
-
-					break; // Success, exit retry loop
-				} catch (error) {
-					attempts++;
-					if (attempts === maxAttempts) {
-						throw error; // Rethrow if all attempts failed
-					}
-					// Wait before retrying
-					await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
-				}
-			}
+	function getOptimalConcurrency(fileSize: number): number {
+		// Start with more conservative concurrency
+		if (fileSize > 1024 * 1024 * 1024) {
+			// > 1GB
+			return 5;
+		} else if (fileSize > 100 * 1024 * 1024) {
+			// > 100MB
+			return 2;
 		}
-
-		return completedParts;
+		return 2; // Default to 2 concurrent uploads
 	}
 
-	async function uploadParallel(parts: PartUrl[], file: File, concurrency = 3) {
+	const getOptimalChunkSize = (fileSize: number): number => {
+		// Use smaller chunks to reduce connection issues
+		if (fileSize > 1024 * 1024 * 1024) {
+			// > 1GB
+			return 10 * 1024 * 1024; // 10MB for large files
+		}
+		return 5 * 1024 * 1024; // 5MB default
+	};
+
+	async function uploadChunk(
+		{ part_number, url }: PartUrl,
+		chunk: Blob
+	): Promise<{ number: number; etag?: string }> {
+		let attempts = 0;
+		const maxAttempts = 5; // Increase max attempts
+		const initialBackoffMS = 1000;
+
+		while (attempts < maxAttempts) {
+			try {
+				// Add timeout to the fetch request
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+				const response = await fetch(url, {
+					method: 'PUT',
+					body: chunk,
+					headers: {
+						'Content-Length': chunk.size.toString(),
+						'Content-Type': 'application/octet-stream'
+					},
+					signal: controller.signal
+				});
+
+				clearTimeout(timeoutId);
+
+				if (!response.ok) {
+					throw new Error(`Failed to upload part ${part_number}: ${response.statusText}`);
+				}
+
+				const etag = response.headers.get('ETag')?.replaceAll('"', '');
+				return { number: part_number, etag };
+			} catch (error) {
+				attempts++;
+				console.log(`Attempt ${attempts} failed for part ${part_number}:`, error);
+
+				if (attempts === maxAttempts) {
+					throw error;
+				}
+
+				// Exponential backoff with jitter
+				const backoffTime = initialBackoffMS * Math.pow(2, attempts - 1);
+				const jitter = Math.random() * 1000;
+				await new Promise((resolve) => setTimeout(resolve, backoffTime + jitter));
+			}
+		}
+		throw new Error(`Failed to upload part ${part_number} after ${maxAttempts} attempts`);
+	}
+
+	async function uploadParallel(parts: PartUrl[], file: File) {
+		const chunkSize = getOptimalChunkSize(file.size);
+		let concurrency = getOptimalConcurrency(file.size);
 		const completedParts: Array<{ number: number; etag?: string }> = [];
 		const totalParts = parts.length;
 		let processedParts = 0;
+		let consecutiveFailures = 0;
 
-		// Process parts in batches
-		for (let i = 0; i < totalParts; i += concurrency) {
+		const uploadedBytes = new Map<number, number>();
+		const startTime = Date.now();
+
+		// Process in batches with dynamic concurrency
+		for (let i = 0; i < totalParts; ) {
 			const batch = parts.slice(i, i + concurrency);
-			const uploadPromises = batch.map(async ({ part_number, url }) => {
-				const start = (part_number - 1) * CHUNK_SIZE;
-				const end = Math.min(start + CHUNK_SIZE, file.size);
+			const batchUploads = batch.map(async ({ part_number, url }) => {
+				const start = (part_number - 1) * chunkSize;
+				const end = Math.min(start + chunkSize, file.size);
 				const chunk = file.slice(start, end);
 
-				// Add retry logic
-				let attempts = 0;
-				const maxAttempts = 3;
+				try {
+					const result = await uploadChunk({ part_number, url }, chunk);
+					uploadedBytes.set(part_number, chunk.size);
 
-				while (attempts < maxAttempts) {
-					try {
-						const response = await fetch(url, {
-							method: 'PUT',
-							body: chunk
-						});
+					// Calculate and update upload speed
+					const totalUploaded = Array.from(uploadedBytes.values()).reduce((a, b) => a + b, 0);
+					const elapsedSeconds = (Date.now() - startTime) / 1000;
+					uploadSpeed = totalUploaded / (1024 * 1024) / elapsedSeconds;
 
-						if (!response.ok) {
-							throw new Error(`Failed to upload part ${part_number}`);
-						}
-
-						const etag = response.headers.get('ETag')?.replaceAll('"', '');
-
-						return {
-							number: part_number,
-							etag
-						};
-					} catch (error) {
-						attempts++;
-						if (attempts === maxAttempts) {
-							throw error; // Rethrow if all attempts failed
-						}
-						// Wait before retrying
-						await new Promise((resolve) => setTimeout(resolve, 1000 * attempts));
-					}
+					consecutiveFailures = 0; // Reset failure counter on success
+					return result;
+				} catch (error) {
+					consecutiveFailures++;
+					throw error;
 				}
-				throw new Error(`Failed to upload part ${part_number} after all attempts`);
 			});
 
-			// Wait for all parts in the current batch to complete
-			const results = await Promise.all(uploadPromises);
-			completedParts.push(...results);
+			try {
+				const results = await Promise.all(batchUploads);
+				completedParts.push(...results);
+				processedParts += batch.length;
+				uploadProgress = (processedParts / totalParts) * 100;
+				i += batch.length;
+			} catch (error) {
+				console.error(`Batch upload failed:`, error);
 
-			// Update progress
-			processedParts += batch.length;
-			uploadProgress = (processedParts / totalParts) * 100;
+				// Reduce concurrency after consecutive failures
+				if (consecutiveFailures >= 2 && concurrency > 1) {
+					concurrency--;
+					console.log(`Reduced concurrency to ${concurrency} due to consecutive failures`);
+					consecutiveFailures = 0;
+				}
+
+				// Wait longer between retries if we're having issues
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+
+				// Don't increment i, so we retry the failed batch
+				continue;
+			}
+
+			// Add a small delay between batches to prevent overwhelming the connection
+			await new Promise((resolve) => setTimeout(resolve, 500));
 		}
 
-		// Sort completed parts by part number
-		completedParts.sort((a, b) => a.number - b.number);
-
-		return completedParts;
+		return completedParts.sort((a, b) => a.number - b.number);
 	}
 
 	async function handleUpload() {
 		if (!file) return;
 
+		currentUpload = new AbortController();
 		isUploading = true;
 		error = null;
 
 		try {
 			// Calculate number of parts
-			const parts = Math.ceil(file.size / CHUNK_SIZE);
+			const parts = Math.ceil(file.size / CHUNK_MB);
 
 			// Initialize upload through server action
 			const formData = new FormData();
@@ -195,9 +222,14 @@
 			uploadProgress = 0;
 			console.log('Uploaded video ', video_id);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Upload failed';
-			console.error(err);
+			// @ts-ignore
+			if (err.name === 'AbortError') {
+				error = 'Upload cancelled';
+			} else {
+				error = err instanceof Error ? err.message : 'Upload failed';
+			}
 		} finally {
+			currentUpload = null;
 			isUploading = false;
 		}
 	}
@@ -236,14 +268,26 @@
 		</FileDropzone>
 
 		{#if isUploading}
-			<div class="space-y-2">
-				<ProgressBar
-					value={uploadProgress}
-					max={100}
-					meter="bg-primary-500"
-					track="bg-primary-100"
-				/>
-				<p class="text-center text-sm">{Math.round(uploadProgress)}% uploaded</p>
+			<div class="space-y-4 divide-y-2 divide-surface-500">
+				<!-- Upload Progress -->
+				<div>
+					<div class="flex flex-nowrap items-center justify-between py-4">
+						<p class="text-sm">Upload Progress</p>
+						<p class="text-lg font-semibold">{Math.round(uploadProgress)}% uploaded</p>
+					</div>
+					<ProgressBar
+						value={uploadProgress}
+						max={100}
+						meter="bg-primary-500"
+						track="bg-primary-300"
+					/>
+				</div>
+
+				<!-- Speed Progress -->
+				<div class="justify-star flex flex-nowrap items-center justify-between pt-4">
+					<p class="text-sm">Upload Speed</p>
+					<p class="text-lg font-semibold">{uploadSpeed.toFixed(1)} MB/s</p>
+				</div>
 			</div>
 		{/if}
 
@@ -253,8 +297,13 @@
 			</div>
 		{/if}
 
-		<button type="submit" class="variant-filled-primary btn w-full" disabled={!file || isUploading}>
-			{isUploading ? 'Uploading...' : 'Upload Video'}
+		<button
+			type="submit"
+			class="btn w-full {isUploading ? 'variant-filled-error' : 'variant-filled-primary'} {!file &&
+				'variant-soft-primary'}"
+			disabled={!file}
+		>
+			{isUploading ? 'Cancel Video' : 'Upload Video'}
 		</button>
 	</form>
 </div>

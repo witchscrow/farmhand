@@ -21,13 +21,12 @@ pub async fn auth_middleware(
     // Pull the full header string out of the header
     let auth_header = match raw_auth_header {
         Some(header) => {
-            tracing::debug!("Auth headers found, attempting user lookup");
+            tracing::trace!("Auth headers found, attempting user lookup");
             header.to_str().map_err(|_| StatusCode::BAD_REQUEST)
         }
         // This middleware allows for optional users, so we just return early if no auth headers are found
         None => {
-            tracing::debug!("No auth headers, skipping user lookup");
-            tracing::debug!("Headers: {:#?}", req.headers());
+            tracing::trace!("No auth headers, skipping user lookup");
             req.extensions_mut().insert(None::<User>);
             return Ok(next.run(req).await);
         }

@@ -36,7 +36,7 @@ export const fetchVideo = async (videoID: string): Promise<Video | null> => {
 					id: video.id,
 					status: video.processing_status,
 					title: video.title,
-					playlist: `${env.API_URL}/${video.video_path}`,
+					playlist: `${env.ASSET_URL}/${video.video_path}`,
 					created_at: video.created_at,
 					updated_at: video.updated_at
 				};
