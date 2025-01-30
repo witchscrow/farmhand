@@ -4,3 +4,4 @@ metadata:
   name: farmhand-ui-config
 data:
   API_URL: "https://staging.api.farmhand.witchscrow.com"
+  ASSET_URL: "https://pub-ce3c4568826847bb9fbaaab457f5a1c6.r2.dev"
