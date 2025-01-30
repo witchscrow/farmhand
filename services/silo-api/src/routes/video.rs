@@ -42,7 +42,7 @@ pub async fn get_videos(
     video_query: Option<Query<VideoByID>>,
     username_query: Option<Query<VideoByUserName>>,
 ) -> impl IntoResponse {
-    tracing::debug!(
+    tracing::trace!(
         "Got video get query params:\n\tvideo_query: {:?}\n\tusername_query: {:?}",
         video_query,
         username_query
@@ -125,6 +125,7 @@ pub struct DeleteVideoResponse {
     deleted_videos: Vec<String>,
 }
 
+// TODO: Refactor to delete from R2 instead
 pub async fn delete_videos(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<Option<User>>,

@@ -36,7 +36,7 @@ export const fetchVideo = async (videoID: string): Promise<Video | null> => {
 					id: video.id,
 					status: video.processing_status,
 					title: video.title,
-					playlist: `${env.API_URL}/${video.video_path}`,
+					playlist: `${env.ASSET_URL}/${video.video_path}`,
 					created_at: video.created_at,
 					updated_at: video.updated_at
 				};
@@ -104,4 +104,25 @@ export const deleteVideos = async (idList: string[], token: string) => {
 	} catch (e) {
 		console.error('Error deleting videos', e);
 	}
+};
+
+/// The URL of a given part of a multipart upload
+type PartURL = {
+	part_number: string;
+	url: string;
+};
+
+// The initialized upload context from the API
+interface NewVideoUploadContext {
+	video_id: string;
+	part_id: string;
+	part_urls: PartURL[];
+}
+
+/// Sends an upload request to the API to get presigned urls for multipart upload
+export const startVideoUpload = async (
+	_fileKey: string,
+	_parts: number
+): Promise<NewVideoUploadContext> => {
+	throw new Error('Not implemented');
 };

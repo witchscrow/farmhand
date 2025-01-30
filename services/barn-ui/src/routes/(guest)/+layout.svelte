@@ -23,7 +23,7 @@
 			<ThemeToggler />
 		{/snippet}
 	</Header>
-	<section class="mx-auto min-h-full w-full flex-grow p-4">
+	<section class="mx-auto flex min-h-full w-full flex-grow p-4">
 		{@render children()}
 	</section>
 	<Footer />

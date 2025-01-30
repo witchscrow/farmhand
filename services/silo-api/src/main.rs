@@ -1,19 +1,22 @@
+mod app_state;
 mod config;
 mod jwt;
 mod middleware;
 mod routes;
+mod s3;
 
+pub use app_state::AppState;
 use axum::{
-    extract::DefaultBodyLimit,
+    extract::State,
     middleware as axum_mw,
     response::IntoResponse,
     routing::{delete, get, post},
-    Router,
+    Json, Router,
 };
 use config::Config;
-use queue::{PostgresQueue, Queue};
-use routes::upload::UPLOAD_CHUNK_SIZE;
-use sqlx::PgPool;
+use reqwest::StatusCode;
+use serde_json::json;
+
 use std::sync::Arc;
 use tower_http::{
     cors::CorsLayer,
@@ -22,13 +25,6 @@ use tower_http::{
 };
 use tracing::Level;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-
-/// Shared state available to the API
-pub struct AppState {
-    db: PgPool,
-    config: Config,
-    queue: Arc<dyn Queue>,
-}
 
 #[tokio::main]
 async fn main() {
@@ -47,18 +43,15 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&config.get_address())
         .await
         .unwrap();
-    // Initialize a connection to the database
-    let db = db::connect_to_database()
-        .await
-        .expect("Could not connect to database");
-    // Initialize the queue
-    let queue = Arc::new(PostgresQueue::new(db.clone()));
     // Store shared data as state between routes
-    let state = Arc::new(AppState { db, config, queue });
-    routes::upload::init_cleanup().await;
+    let app_state = AppState::new(config)
+        .await
+        .expect("Could not construct app state");
+    let state = Arc::new(app_state);
     // Initialize our router with the shared state and required routes
     let app = Router::new()
         .route("/", get(index))
+        .route("/delete-videos", get(delete_all_files))
         .nest(
             "/auth",
             Router::new()
@@ -88,16 +81,16 @@ async fn main() {
                     middleware::auth::auth_middleware,
                 )),
         )
-        // TODO: Update this to use Backblaze instead
-        // .route(
-        //     "/upload",
-        //     post(routes::upload::upload_video)
-        //         .layer(DefaultBodyLimit::max(UPLOAD_CHUNK_SIZE * 8))
-        //         .layer(axum_mw::from_fn_with_state(
-        //             state.clone(),
-        //             middleware::auth::auth_middleware,
-        //         )),
-        // )
+        .nest(
+            "/upload",
+            Router::new()
+                .route("/start", post(routes::upload::cloud::init_upload))
+                .route("/finish", post(routes::upload::cloud::complete_upload))
+                .layer(axum_mw::from_fn_with_state(
+                    state.clone(),
+                    middleware::auth::auth_middleware,
+                )),
+        )
         .nest(
             "/video",
             Router::new()
@@ -147,4 +140,96 @@ async fn main() {
 /// Render the root index page
 async fn index() -> impl IntoResponse {
     "Welcome to the farmhand api"
+}
+
+pub async fn delete_all_files(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let client = &state.s3_client;
+    let bucket = std::env::var("UPLOAD_BUCKET").expect("UPLOAD_BUCKET required");
+
+    // First, abort all multipart uploads
+    let multipart_uploads = client
+        .list_multipart_uploads()
+        .bucket(&bucket)
+        .send()
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Failed to list multipart uploads: {}", e) })),
+            )
+        })?;
+
+    let uploads = multipart_uploads.uploads();
+    for upload in uploads {
+        if let (Some(key), Some(upload_id)) = (upload.key(), upload.upload_id()) {
+            client
+                .abort_multipart_upload()
+                .bucket(&bucket)
+                .key(key)
+                .upload_id(upload_id)
+                .send()
+                .await
+                .map_err(|e| {
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(
+                            json!({ "error": format!("Failed to abort multipart upload: {}", e) }),
+                        ),
+                    )
+                })?;
+        }
+    }
+
+    // Then delete all complete objects
+    let objects = client
+        .list_objects_v2()
+        .bucket(&bucket)
+        .send()
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": format!("Failed to list objects: {}", e) })),
+            )
+        })?;
+
+    // If there are objects to delete
+    if !objects.contents().is_empty() {
+        // Prepare objects for deletion
+        let objects_to_delete: Vec<_> = objects
+            .contents()
+            .iter()
+            .filter_map(|obj| {
+                obj.key().map(|k| {
+                    aws_sdk_s3::types::ObjectIdentifier::builder()
+                        .key(k)
+                        .build()
+                        .expect("Could not build object identifier")
+                })
+            })
+            .collect();
+
+        // Delete the objects
+        client
+            .delete_objects()
+            .bucket(&bucket)
+            .delete(
+                aws_sdk_s3::types::Delete::builder()
+                    .set_objects(Some(objects_to_delete))
+                    .build()
+                    .expect("Could not build deleter"),
+            )
+            .send()
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": format!("Failed to delete objects: {}", e) })),
+                )
+            })?;
+    }
+
+    Ok(Json(json!({ "message": "All files deleted successfully" })))
 }

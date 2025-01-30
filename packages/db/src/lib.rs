@@ -5,7 +5,9 @@ pub mod videos;
 pub use users::User;
 pub use videos::{ProcessingStatus, Video};
 
-use sqlx::postgres::PgPool;
+use sqlx::{postgres::PgPool, Pool, Postgres};
+
+pub type DBPool = Pool<Postgres>;
 
 /// Function to establish a connection to the PostgreSQL database
 pub async fn connect_to_database() -> Result<PgPool, sqlx::Error> {

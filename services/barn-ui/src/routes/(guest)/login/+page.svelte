@@ -50,17 +50,12 @@
 		<p class="text-sm">Logging you in...</p>
 	</section>
 {:else}
-	<section class="flex flex-col items-center space-y-4">
+	<section class="flex w-full flex-col items-center justify-center space-y-4">
 		<header class="flex flex-col space-y-4 text-center">
 			<h1 class="font-serif text-2xl text-secondary-700 dark:text-primary-500">Login</h1>
 			<p class="text-secondary-800 dark:text-primary-100">Login to your farmhand account</p>
 		</header>
 
 		<BrandButton brand="twitch" onclick={handleTwitchLogin} />
-
-		<Form submitText="Login" loadingText="Logging in..." error={form?.error?.message}>
-			<Input label="Username" name="username" type="text" value={form?.data?.username ?? ''} />
-			<Input label="Password" name="password" type="password" />
-		</Form>
 	</section>
 {/if}

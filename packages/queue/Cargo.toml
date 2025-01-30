@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1"
 async-trait = "0.1"
 chrono = "0.4"
 db = { path = "../../packages/db" }
@@ -23,3 +24,4 @@ ulid = { version = "1", features = ["uuid"] }
 uuid = { version = "1", features = ["serde", "v4"] }
 vod = { path = "../../packages/vod" }
 zip = "0.6"
+common = { path = "../common" }
