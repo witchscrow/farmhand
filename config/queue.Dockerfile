@@ -29,7 +29,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 FROM jrottenberg/ffmpeg:7.1-ubuntu2404-edge
 
-ENTRYPOINT [ "where ffmpeg" ]
+ENTRYPOINT [ "which ffmpeg" ]
 # Runtime stage
 # FROM --platform=$TARGETPLATFORM debian:bullseye-slim
 
