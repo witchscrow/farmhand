@@ -26,12 +26,11 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cp /app/target/release/forge /usr/local/bin/forge
 
 # Runtime stage
-FROM --platform=$TARGETPLATFORM debian:bullseye-slim
+FROM --platform=$TARGETPLATFORM jrottenberg/ffmpeg:ffmpeg-7.1-alpine320
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    ffmpeg \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
