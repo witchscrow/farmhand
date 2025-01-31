@@ -25,8 +25,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release -p forge && \
     cp /app/target/release/forge /usr/local/bin/forge
 
+COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /usr/local/bin/ffmpeg /usr/bin/ffmpeg
+
 # Runtime stage
-FROM jrottenberg/ffmpeg:7.1-ubuntu2404-edge
+FROM --platform=$TARGETPLATFORM debian:bullseye-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
