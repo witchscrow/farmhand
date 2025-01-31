@@ -39,6 +39,8 @@ RUN apt-get update && apt-get install -y \
 COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
 # Copy ffmpeg
 COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /usr/local/bin/ffmpeg /usr/bin/ffmpeg
+# Copy ffprobe
+COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /usr/local/bin/ffprobe /usr/bin/ffprobe
 
 # Expose the health check server
 EXPOSE 8080
