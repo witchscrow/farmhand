@@ -28,8 +28,13 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 # COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /opt/ffmpeg /usr/local/ffmpeg
 
 FROM jrottenberg/ffmpeg:7.1-ubuntu2404-edge
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    mlocate \
+    && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT [ "which ffmpeg" ]
+ENTRYPOINT ["which"]
+CMD ["ffmpeg"]
 # Runtime stage
 # FROM --platform=$TARGETPLATFORM debian:bullseye-slim
 
