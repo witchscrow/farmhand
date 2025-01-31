@@ -29,9 +29,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 FROM jrottenberg/ffmpeg:7.1-ubuntu2404-edge
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    mlocate \
-    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y which
+
 
 ENTRYPOINT ["which"]
 CMD ["ffmpeg"]
