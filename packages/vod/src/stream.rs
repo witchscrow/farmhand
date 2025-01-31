@@ -84,6 +84,7 @@ impl Quality {
 
 impl HLSConverter {
     fn get_video_dimensions(&self, input_path: &Path) -> Result<(u32, u32)> {
+        debug!("Getting dimensions for {:?}", input_path);
         let output = Command::new(&self.ffmpeg_path)
             .arg("-i")
             .arg(input_path)
