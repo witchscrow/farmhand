@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release -p forge && \
     cp /app/target/release/forge /usr/local/bin/forge
 
-COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /usr/local/bin/ffmpeg /usr/bin/ffmpeg
+COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /opt/ffmpeg /usr/local/ffmpeg
 
 # Runtime stage
 FROM --platform=$TARGETPLATFORM debian:bullseye-slim
