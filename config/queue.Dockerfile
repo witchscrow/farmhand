@@ -25,22 +25,25 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release -p forge && \
     cp /app/target/release/forge /usr/local/bin/forge
 
-COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /opt/ffmpeg /usr/local/ffmpeg
+# COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /opt/ffmpeg /usr/local/ffmpeg
 
+FROM jrottenberg/ffmpeg:7.1-ubuntu2404-edge
+
+ENTRYPOINT [ "where ffmpeg" ]
 # Runtime stage
-FROM --platform=$TARGETPLATFORM debian:bullseye-slim
+# FROM --platform=$TARGETPLATFORM debian:bullseye-slim
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
+# # Install runtime dependencies
+# RUN apt-get update && apt-get install -y \
+#     ca-certificates \
+#     libpq5 \
+#     && rm -rf /var/lib/apt/lists/*
 
-# Copy the binary from builder
-COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
+# # Copy the binary from builder
+# COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
 
-# Expose the health check server
-EXPOSE 8080
+# # Expose the health check server
+# EXPOSE 8080
 
-# Set the entrypoint
-ENTRYPOINT ["/usr/local/bin/forge"]
+# # Set the entrypoint
+# ENTRYPOINT ["/usr/local/bin/forge"]
