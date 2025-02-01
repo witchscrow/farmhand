@@ -6,3 +6,4 @@ data:
   RUST_LOG: "api=debug,db=debug,queue=debug,vod=debug,tower_http=debug,axum::rejection=trace"
   STORAGE: "videos/staging"
   UPLOAD_BUCKET: "farmhand"
+  FFMPEG_LOCATION: "/usr/local/bin/ffmpeg"
