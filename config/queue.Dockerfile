@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 
 
 # Runtime stage
-FROM --platform=$TARGETPLATFORM debian:bullseye-slim
+FROM jrottenberg/ffmpeg:7.1-ubuntu2404-edge
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -37,10 +37,6 @@ RUN apt-get update && apt-get install -y \
 
 # Copy the binary from builder
 COPY --from=builder /usr/local/bin/forge /usr/local/bin/forge
-# Copy ffmpeg
-COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /usr/local/bin/ffmpeg /usr/bin/ffmpeg
-# Copy ffprobe
-COPY --from=jrottenberg/ffmpeg:7.1-ubuntu2404-edge /usr/local/bin/ffprobe /usr/bin/ffprobe
 
 # Expose the health check server
 EXPOSE 8080
