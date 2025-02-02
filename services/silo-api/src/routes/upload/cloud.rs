@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use aws_sdk_s3::types::{CompletedMultipartUpload, CompletedPart};
 use axum::{extract::State, Extension, Json};
-use db::{User, Video};
+use common::db::{User, Video};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 

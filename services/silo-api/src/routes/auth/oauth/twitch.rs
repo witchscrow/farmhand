@@ -5,7 +5,7 @@ use axum::{
     Extension,
 };
 use chrono::{Duration, Utc};
-use db::{accounts::Account, users::User};
+use common::db::{accounts::Account, users::User};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::{env, sync::Arc};

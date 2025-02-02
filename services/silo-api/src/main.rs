@@ -6,16 +6,12 @@ mod routes;
 
 pub use app_state::AppState;
 use axum::{
-    extract::State,
     middleware as axum_mw,
     response::IntoResponse,
     routing::{delete, get, post},
-    Json, Router,
+    Router,
 };
 use config::Config;
-use reqwest::StatusCode;
-
-use serde_json::json;
 
 use std::sync::Arc;
 use tower_http::{

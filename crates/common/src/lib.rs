@@ -1,3 +1,4 @@
+pub mod db;
 pub mod s3;
 
 /// Get the directory for where to store videos

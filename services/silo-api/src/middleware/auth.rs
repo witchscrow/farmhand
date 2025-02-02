@@ -7,7 +7,7 @@ use axum::{
     http::{self, Response, StatusCode},
     middleware::Next,
 };
-use db::users::User;
+use common::db::users::User;
 use uuid::Uuid;
 
 /// A middleware for checking the validity of the JWT token

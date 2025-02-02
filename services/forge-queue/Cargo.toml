@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 axum = { version = "0.7.9", features = ["tracing"] }
-db = { path = "../../packages/db" }
-queue = { path = "../../packages/queue" }
+common = { path = "../../crates/common" }
+queue = { path = "../../crates/queue" }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
