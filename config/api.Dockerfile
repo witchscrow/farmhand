@@ -14,7 +14,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 
 # Copy all workspace members
-COPY packages/ ./packages/
+COPY crates/ ./crates/
 COPY services/forge-queue ./services/forge-queue
 COPY services/silo-api ./services/silo-api
 
