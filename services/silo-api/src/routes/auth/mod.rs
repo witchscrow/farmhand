@@ -3,7 +3,7 @@ pub mod oauth;
 use std::sync::Arc;
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
-use db::users::User;
+use common::db::users::User;
 use serde::{Deserialize, Serialize};
 
 use crate::{jwt::encode_jwt, AppState};

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::anyhow;
 use aws_sdk_s3::Client;
-use db::{DBPool, Video};
+use common::db::{DBPool, Video};
 use stream::{get_ffmpeg_location, HLSConverter};
 
 pub mod stream;

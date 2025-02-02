@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
-use db::users::{User, UserRole};
+use common::db::users::{User, UserRole};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;

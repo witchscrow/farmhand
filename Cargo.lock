@@ -137,7 +137,6 @@ dependencies = [
  "axum-extra",
  "chrono",
  "common",
- "db",
  "futures",
  "hex",
  "jsonwebtoken",
@@ -948,10 +947,17 @@ checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "argon2",
  "aws-config",
  "aws-sdk-s3",
  "aws-types",
+ "chrono",
+ "nanoid",
+ "serde",
+ "sqlx",
  "tracing",
+ "tracing-subscriber",
+ "uuid",
  "walkdir",
 ]
 
@@ -1096,20 +1102,6 @@ name = "data-encoding"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e8566979429cf69b49a5c740c60791108e86440e8be149bbea4fe54d2c32d6e2"
-
-[[package]]
-name = "db"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "chrono",
- "nanoid",
- "serde",
- "sqlx",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
 
 [[package]]
 name = "der"
@@ -1317,7 +1309,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.9",
- "db",
+ "common",
  "queue",
  "tokio",
  "tracing",
@@ -2432,7 +2424,6 @@ dependencies = [
  "async-trait",
  "chrono",
  "common",
- "db",
  "futures",
  "serde",
  "sqlx",
@@ -3862,7 +3853,6 @@ dependencies = [
  "anyhow",
  "aws-sdk-s3",
  "common",
- "db",
  "tracing",
 ]
 

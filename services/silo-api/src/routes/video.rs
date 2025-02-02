@@ -4,7 +4,7 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
-use db::{ProcessingStatus, User, Video};
+use common::db::{self, ProcessingStatus, User, Video};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 

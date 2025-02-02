@@ -17,7 +17,7 @@ pub struct AppState {
 impl AppState {
     pub async fn new(config: Config) -> Result<Self, Box<dyn std::error::Error>> {
         // Initialize a connection to the database
-        let db = db::connect_to_database()
+        let db = common::db::connect_to_database()
             .await
             .expect("Could not connect to database");
         // Initialize the queue

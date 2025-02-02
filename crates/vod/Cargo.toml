@@ -6,6 +6,5 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0"
 tracing = "0.1"
-db = { path = "../db" }
 aws-sdk-s3 = "1.71.0"
 common = { path = "../common" }

@@ -3,7 +3,7 @@ use axum::{
     http::StatusCode,
     Extension,
 };
-use db::{users::User, Video};
+use common::db::{users::User, Video};
 use sha2::{Digest, Sha256};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::{collections::HashMap, path::Path, sync::Arc};

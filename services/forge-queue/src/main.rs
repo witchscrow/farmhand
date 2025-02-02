@@ -1,4 +1,4 @@
-use db::connect_to_database;
+use common::db::connect_to_database;
 use queue::{runner, PostgresQueue, Queue};
 use std::sync::Arc;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

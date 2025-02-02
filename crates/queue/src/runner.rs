@@ -4,7 +4,7 @@ use crate::queue::{Job, Message, Queue};
 use anyhow::anyhow;
 use common::get_storage_dir;
 use common::s3::sync_directory_to_bucket;
-use db::Video;
+use common::db::Video;
 use futures::{stream, StreamExt};
 use sqlx::{Pool, Postgres};
 use std::fs;
