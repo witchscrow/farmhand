@@ -25,6 +25,30 @@ pub enum UserRole {
     Viewer,
 }
 
+impl ToString for UserRole {
+    fn to_string(&self) -> String {
+        match self {
+            UserRole::Admin => "admin".to_string(),
+            UserRole::Creator => "creator".to_string(),
+            UserRole::Viewer => "viewer".to_string(),
+        }
+    }
+}
+
+impl From<String> for UserRole {
+    fn from(s: String) -> Self {
+        match s.to_lowercase().as_str() {
+            "admin" => UserRole::Admin,
+            "creator" => UserRole::Creator,
+            "viewer" => UserRole::Viewer,
+            _ => {
+                tracing::warn!("Invalid role: {}", s);
+                UserRole::Viewer // Default to viewer role
+            }
+        }
+    }
+}
+
 pub enum UserError {
     FailedToHashPassword,
     BadPassword,

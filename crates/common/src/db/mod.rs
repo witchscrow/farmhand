@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod permissions;
 pub mod users;
 pub mod videos;
 
