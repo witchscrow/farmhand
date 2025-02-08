@@ -82,8 +82,12 @@ impl User {
     }
     /// Hashes the password for the user
     pub fn hash_password(&mut self) -> Result<&mut Self, UserError> {
-        let hashed_password =
-            hash_string(&self.password_hash).map_err(|_| UserError::FailedToHashPassword)?;
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        let hashed_password = argon2
+            .hash_password(self.password_hash.as_bytes(), &salt)
+            .map_err(|_| UserError::FailedToHashPassword)?
+            .to_string();
         self.password_hash = hashed_password;
         Ok(self)
     }
@@ -102,15 +106,4 @@ impl User {
 
         Ok(self)
     }
-}
-
-/// Hash a string using Argon2
-pub fn hash_string(password: &str) -> Result<String, argon2::password_hash::Error> {
-    let salt = SaltString::generate(&mut OsRng);
-    let argon2 = Argon2::default();
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)?
-        .to_string();
-
-    Ok(password_hash)
 }
