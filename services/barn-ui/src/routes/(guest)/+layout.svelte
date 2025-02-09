@@ -14,11 +14,9 @@
 	<Header class="mx-auto w-full max-w-screen-xl">
 		{#snippet actions()}
 			{#if data.user}
-				<Button variant="secondary" href="/upload">Upload</Button>
 				<MyAccount user={data.user} />
 			{:else}
 				<Button href="/login">Log in</Button>
-				<Button href="/register">Register</Button>
 			{/if}
 			<ThemeToggler />
 		{/snippet}

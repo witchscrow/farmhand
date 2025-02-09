@@ -15,11 +15,6 @@
 			copy: 'My Account',
 			icon: MyAccount,
 			url: '/me'
-		},
-		{
-			copy: 'My Videos',
-			icon: Video,
-			url: '/me/videos'
 		}
 	];
 </script>

@@ -8,16 +8,25 @@
 	import Button from '$lib/components/Button.svelte';
 
 	let { children, data }: { children: Snippet; data: LayoutServerData } = $props();
+	const sidebarLinks = [
+		{
+			link: '/dashboard/streams',
+			label: 'Streams'
+		}
+	];
 </script>
 
 <main class="grid min-h-screen grid-cols-12 grid-rows-main divide-x divide-y">
 	<Header
 		width="w-full max-w-none"
 		class="dark:bg-primary-950/30 col-span-12 row-start-1 border-primary-200/20 bg-black/40 backdrop-blur-sm dark:border-primary-800/40"
+		headerLink="/dashboard"
 	>
 		{#snippet actions()}
-			<nav class="mr-4 flex justify-evenly space-x-4">
-				<Button variant="secondary" href="/upload">Upload</Button>
+			<nav class="mr-4 flex items-center justify-evenly space-x-4">
+				<a href="/dashboard">
+					<span class="font-semibold">Dashboard</span>
+				</a>
 				<MyAccount user={data.user} />
 				<ThemeToggler />
 			</nav>
@@ -28,12 +37,11 @@
 	>
 		<nav>
 			<ul>
-				<li>
-					<a href="/me/videos">My Videos</a>
-				</li>
-				<li>
-					<a href="/upload">Upload</a>
-				</li>
+				{#each sidebarLinks as link}
+					<li class="font-semibold uppercase">
+						<a href={link.link}>{link.label}</a>
+					</li>
+				{/each}
 			</ul>
 		</nav>
 	</aside>
