@@ -1,3 +1,4 @@
+use super::permissions::{Action, Permission, Resource};
 use argon2::{
     password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
     Argon2, PasswordVerifier,
@@ -5,8 +6,8 @@ use argon2::{
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Uuid, PgPool};
 
-#[derive(sqlx::FromRow, Serialize, Deserialize, Clone)]
 /// A database representation of a user
+#[derive(sqlx::FromRow, Serialize, Deserialize, Clone, Debug)]
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -17,7 +18,7 @@ pub struct User {
     pub updated_at: chrono::NaiveDateTime,
 }
 
-#[derive(sqlx::Type, Serialize, Deserialize, Clone)]
+#[derive(sqlx::Type, Serialize, Deserialize, Clone, Debug)]
 #[sqlx(type_name = "user_role", rename_all = "lowercase")]
 pub enum UserRole {
     Admin,
@@ -129,5 +130,15 @@ impl User {
         .await?;
 
         Ok(self)
+    }
+    /// Checks the user for a given permission
+    pub async fn has_permission(
+        &self,
+        action: impl Into<Action>,
+        resource: impl Into<Resource>,
+        pool: &PgPool,
+    ) -> Result<bool, sqlx::Error> {
+        let permission = Permission::new(action, resource);
+        todo!("Implement permission checking logic")
     }
 }

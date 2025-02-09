@@ -1,17 +1,56 @@
-// The structure of a permission is role:action:resource
+//! Permission module
+//!
+//! This module defines the `Permission` struct and associated enums for actions and resources.
+//! It also provides methods for creating and parsing permissions.
 
-use super::users::UserRole;
+use uuid::Uuid;
+
+use super::User;
 
 /// A permission represents a user's ability to perform an action on a resource
 /// It contains the role, action, and resource that the permission applies to
 #[allow(dead_code)] // TODO: Remove this line once the permission struct is used
 pub struct Permission {
-    role: UserRole,
     action: Action,
     resource: Resource,
 }
 
+/// Context for evaluating permissions with additional attributes
+#[derive(Debug)]
+pub struct PermissionContext {
+    pub user: User,
+    pub resource: Resource,
+    pub action: Action,
+    pub resource_owner_id: Option<Uuid>,
+}
+
+impl PermissionContext {}
+
+/// Represents a condition that must be met for a permission to be granted
+pub struct PermissionCondition {
+    pub attribute_name: String,
+    pub operator: String,
+    pub value: String,
+}
+
+impl PermissionCondition {
+    pub fn evaluate(&self, context: &PermissionContext) -> bool {
+        match self.attribute_name.as_str() {
+            "resource_owner" => self.evaluate_ownership(context),
+        }
+    }
+
+    fn evaluate_ownership(&self, context: &PermissionContext) -> bool {
+        match self.operator.as_str() {
+            "equals" => context.resource_owner_id == Some(context.user.id),
+            "!=" => context.resource_owner_id != Some(context.user.id),
+            _ => panic!("Invalid operator: {}", self.operator),
+        }
+    }
+}
+
 /// An action represents a given operation that a user can perform on a resource
+#[derive(Debug)]
 pub enum Action {
     Create,
     Read,
@@ -26,53 +65,44 @@ impl From<String> for Action {
             "read" => Action::Read,
             "update" => Action::Update,
             "delete" => Action::Delete,
-            _ => {
-                tracing::trace!("Invalid action: {}, defaulting to read", s);
-                Action::Read // Default to read permission
-            }
+            _ => panic!("Invalid action: {}", s),
         }
     }
 }
 
 /// A resource represents a given entity that a user can perform actions on
+#[derive(Debug)]
 pub enum Resource {
     Video,
+    User,
 }
 
 impl From<String> for Resource {
     fn from(s: String) -> Self {
         match s.to_lowercase().as_str() {
             "video" => Resource::Video,
-            _ => {
-                tracing::trace!("Invalid resource: {}, defaulting to video", s);
-                Resource::Video // Default to video resource
-            }
+            "user" => Resource::User,
+            _ => panic!("Invalid resource: {}", s),
         }
     }
 }
 
 impl Permission {
-    pub fn new(
-        role: impl Into<UserRole>,
-        action: impl Into<Action>,
-        resource: impl Into<Resource>,
-    ) -> Self {
+    pub fn new(action: impl Into<Action>, resource: impl Into<Resource>) -> Self {
         Permission {
-            role: role.into(),
             action: action.into(),
             resource: resource.into(),
         }
     }
     /// Parses a role out of a string
-    /// The pattern is role:action:resource
+    /// The pattern is action:resource
     pub fn parse_from_string(input: &str) -> Option<Self> {
         let parts: Vec<&str> = input.split(':').collect();
-        if parts.len() != 3 {
+        if parts.len() != 2 {
             return None;
         }
-        let role = UserRole::from(parts[0].to_string());
-        let action = Action::from(parts[1].to_string());
-        let resource = Resource::from(parts[2].to_string());
-        Some(Permission::new(role, action, resource))
+        let action = Action::from(parts[0].to_string());
+        let resource = Resource::from(parts[1].to_string());
+        Some(Permission::new(action, resource))
     }
 }
