@@ -26,9 +26,6 @@ async fn main() -> anyhow::Result<()> {
     // Get database connection pool using the db package
     let db_pool = connect_to_database().await?;
 
-    // Run migrations
-    common::db::run_migrations(&db_pool).await?;
-
     // Create queue instance
     let queue = PostgresQueue::new(db_pool.clone());
     let queue = Arc::new(queue) as Arc<dyn Queue>;
