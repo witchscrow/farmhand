@@ -44,6 +44,10 @@ async fn main() {
         .await
         .expect("Could not construct app state");
     let state = Arc::new(app_state);
+    // Run migrations
+    common::db::run_migrations(&state.db)
+        .await
+        .expect("Could not run migrations");
     // Initialize our router with the shared state and required routes
     let app = Router::new()
         .route("/", get(index))
