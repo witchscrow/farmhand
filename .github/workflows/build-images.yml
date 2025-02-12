@@ -1,10 +1,6 @@
 name: build & push images
 
 on:
-  release:
-    types:
-      - prereleased
-      - released
   workflow_dispatch:
   workflow_call:
     outputs:
