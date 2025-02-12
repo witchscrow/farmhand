@@ -12,7 +12,6 @@ jobs:
     secrets: inherit
 
   deploy:
-    runs-on: hermes-1
     environment: staging
     needs: build
     steps:
