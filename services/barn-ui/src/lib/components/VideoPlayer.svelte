@@ -43,7 +43,7 @@
 		{:else}
 			<video
 				bind:this={videoElement}
-				class="bg-surface-100 h-full w-full border-8 border-secondary-300 shadow-xl dark:border-primary-900 dark:bg-primary-900"
+				class="h-full w-full border-8 border-secondary-300 bg-surface-100 shadow-xl dark:border-primary-900 dark:bg-primary-900"
 				controls
 				playsinline
 				autoplay

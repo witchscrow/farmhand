@@ -13,6 +13,6 @@
 		{type}
 		{value}
 		{placeholder}
-		class="input rounded border-2 text-black placeholder-primary-200 dark:border-primary-950 dark:bg-primary-800 dark:text-primary-50"
+		class="dark:border-primary-950 input rounded border-2 text-black placeholder-primary-200 dark:bg-primary-800 dark:text-primary-50"
 	/>
 </label>
