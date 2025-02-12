@@ -12,6 +12,7 @@ jobs:
     secrets: inherit
 
   deploy:
+    runs-on: ubuntu-latest
     environment: staging
     needs: build
     steps:
