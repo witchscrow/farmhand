@@ -50,8 +50,8 @@ pub async fn auth_middleware(
         tracing::error!("Could not get user from database in middleware {e}");
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-    // Pass the user to the extensions
-    tracing::trace!("Inserting user into request");
+    // Pass the user (including settings) to the extensions
+    tracing::trace!("Inserting user with settings into request");
     req.extensions_mut().insert(Some(user));
     tracing::trace!("Passing to next task");
     Ok(next.run(req).await)

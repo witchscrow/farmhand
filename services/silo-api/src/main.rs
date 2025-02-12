@@ -8,7 +8,7 @@ pub use app_state::AppState;
 use axum::{
     middleware as axum_mw,
     response::IntoResponse,
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use config::Config;
@@ -71,6 +71,7 @@ async fn main() {
             "/user",
             Router::new()
                 .route("/me", get(routes::user::get_self))
+                .route("/me", put(routes::user::save_user))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,

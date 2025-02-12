@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
     Extension, Json,
 };
-use common::db::users::{User, UserRole};
+use common::db::users::{User, UserRole, UserSettings};
 use serde::{Deserialize, Serialize};
 
 use crate::AppState;
@@ -17,6 +17,7 @@ struct UserResponse {
     username: String,
     email: String,
     role: UserRole,
+    settings: Option<UserSettings>,
 }
 
 /// Gets the owner of the token used to authenticate
@@ -26,6 +27,7 @@ pub async fn get_self(Extension(user): Extension<Option<User>>) -> impl IntoResp
             username: user.username,
             email: user.email,
             role: user.role,
+            settings: user.settings,
         })),
         None => Err(StatusCode::BAD_REQUEST),
     }
@@ -79,6 +81,7 @@ pub async fn get_user(
                 username: found_user.username,
                 email: found_user.email,
                 role: found_user.role,
+                settings: found_user.settings,
             };
 
             Ok(Json(UserListResponse {
@@ -98,6 +101,7 @@ pub async fn get_user(
                 username: found_user.username,
                 email: found_user.email,
                 role: found_user.role,
+                settings: found_user.settings,
             };
 
             Ok(Json(UserListResponse {
@@ -123,10 +127,87 @@ pub async fn get_user(
                     username: user.username,
                     email: user.email,
                     role: user.role,
+                    settings: user.settings,
                 })
                 .collect();
 
             Ok(Json(UserListResponse { users }))
         }
     }
+}
+
+#[derive(Deserialize)]
+pub struct UpdateUserSettings {
+    stream_status_enabled: bool,
+    chat_messages_enabled: bool,
+    channel_points_enabled: bool,
+    follows_subs_enabled: bool,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateUserRequest {
+    username: String,
+    settings: UpdateUserSettings,
+}
+
+/// Saves a user
+pub async fn save_user(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<Option<User>>,
+    Json(post): Json<UpdateUserRequest>,
+) -> impl IntoResponse {
+    let Some(user) = user else {
+        tracing::error!("Failed to get user");
+        return Err(StatusCode::BAD_REQUEST);
+    };
+
+    if user.username != post.username {
+        tracing::error!("User attempted to update another user's data");
+        return Err(StatusCode::FORBIDDEN);
+    }
+
+    // Get current chat messages setting
+    let was_chat_enabled = user
+        .settings
+        .as_ref()
+        .and_then(|s| s.chat_messages_enabled)
+        .is_some();
+
+    // Update settings
+    match user
+        .clone()
+        .update_settings(
+            post.settings.stream_status_enabled,
+            post.settings.chat_messages_enabled,
+            post.settings.channel_points_enabled,
+            post.settings.follows_subs_enabled,
+            &state.db,
+        )
+        .await
+    {
+        Ok(settings) => {
+            // Check if chat messages was newly enabled
+            if post.settings.chat_messages_enabled && !was_chat_enabled {
+                setup_chat_messages_webhook(user.id).await;
+            }
+
+            Ok(Json(UserResponse {
+                username: user.username,
+                email: user.email,
+                role: user.role,
+                settings: Some(settings.clone()),
+            }))
+        }
+        Err(e) => {
+            tracing::error!("Error updating settings: {e}");
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
+// Function to handle chat message webhook setup
+async fn setup_chat_messages_webhook(user_id: uuid::Uuid) {
+    // Placeholder for now
+    tracing::info!("Setting up chat messages webhook for user {}", user_id);
+    // TODO: Implement actual webhook setup
 }
