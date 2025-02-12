@@ -18,6 +18,11 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+      - uses: moonrepo/setup-rust@v1
+        with:
+          cache-base: main
+      - uses: Swatinem/rust-cache@v2
+      - uses: extractions/setup-just@v2
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
@@ -26,6 +31,12 @@ jobs:
 
       - name: Save DigitalOcean kubeconfig
         run: doctl kubernetes cluster kubeconfig save ${{ vars.CLUSTER_NAME }}
+
+      - name: Install SQLX
+        run: cargo install sqlx-cli
+
+      - name: Run SQLX migrations
+        run: just migrate
 
       - name: Update kustomization
         run: |

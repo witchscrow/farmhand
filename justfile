@@ -45,10 +45,10 @@ build-web:
     yarn build
 
 build-api:
-    cargo build -p api --release
+    cargo build -p api
 
 build-queue:
-    cargo build -p forge --release
+    cargo build -p forge
 
 # Docker build commands - Queue Service (forge-queue)
 biq: build-image-queue  # Shorthand for building queue image
