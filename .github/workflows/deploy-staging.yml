@@ -18,9 +18,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - run: rustup toolchain install stable --profile minimal
-      - uses: Swatinem/rust-cache@v2
-      - uses: extractions/setup-just@v2
 
       - name: Install doctl
         uses: digitalocean/action-doctl@v2
