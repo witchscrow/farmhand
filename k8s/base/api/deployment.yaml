@@ -35,6 +35,11 @@ spec:
                 secretKeyRef:
                   name: farmhand-twitch-credentials
                   key: client-secret
+            - name: TWITCH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: farmhand-twitch-credentials
+                  key: hmac-secret
             - name: R2_ACCOUNT_ID
               valueFrom:
                 secretKeyRef:
