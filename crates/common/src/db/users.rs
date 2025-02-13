@@ -56,13 +56,13 @@ struct UserWithSettingsAndAccount {
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
     // Settings fields
-    pub settings_id: Uuid,
+    pub settings_id: Option<Uuid>,
     pub stream_status_enabled: Option<DateTime<Utc>>,
     pub chat_messages_enabled: Option<DateTime<Utc>>,
     pub channel_points_enabled: Option<DateTime<Utc>>,
     pub follows_subs_enabled: Option<DateTime<Utc>>,
-    pub settings_created_at: DateTime<Utc>,
-    pub settings_updated_at: DateTime<Utc>,
+    pub settings_created_at: Option<DateTime<Utc>>,
+    pub settings_updated_at: Option<DateTime<Utc>>,
     // Account fields
     pub account_id: Option<Uuid>,
     pub provider: Option<String>,
@@ -172,6 +172,23 @@ impl User {
             })
             .collect();
 
+        let settings = first_row.settings_id.and_then(|settings_id| {
+            // Only create settings if we have the required timestamps
+            match (first_row.settings_created_at, first_row.settings_updated_at) {
+                (Some(created_at), Some(updated_at)) => Some(UserSettings {
+                    id: settings_id,
+                    user_id: first_row.id,
+                    stream_status_enabled: first_row.stream_status_enabled,
+                    chat_messages_enabled: first_row.chat_messages_enabled,
+                    channel_points_enabled: first_row.channel_points_enabled,
+                    follows_subs_enabled: first_row.follows_subs_enabled,
+                    created_at,
+                    updated_at,
+                }),
+                _ => None,
+            }
+        });
+
         Ok(User {
             id: first_row.id,
             email: first_row.email.clone(),
@@ -180,16 +197,7 @@ impl User {
             role: first_row.role.clone(),
             created_at: first_row.created_at,
             updated_at: first_row.updated_at,
-            settings: Some(UserSettings {
-                id: first_row.settings_id,
-                user_id: first_row.id,
-                stream_status_enabled: first_row.stream_status_enabled,
-                chat_messages_enabled: first_row.chat_messages_enabled,
-                channel_points_enabled: first_row.channel_points_enabled,
-                follows_subs_enabled: first_row.follows_subs_enabled,
-                created_at: first_row.settings_created_at,
-                updated_at: first_row.settings_updated_at,
-            }),
+            settings,
             accounts,
         })
     }
@@ -265,6 +273,23 @@ impl User {
             })
             .collect();
 
+        let settings = first_row.settings_id.and_then(|settings_id| {
+            // Only create settings if we have the required timestamps
+            match (first_row.settings_created_at, first_row.settings_updated_at) {
+                (Some(created_at), Some(updated_at)) => Some(UserSettings {
+                    id: settings_id,
+                    user_id: first_row.id,
+                    stream_status_enabled: first_row.stream_status_enabled,
+                    chat_messages_enabled: first_row.chat_messages_enabled,
+                    channel_points_enabled: first_row.channel_points_enabled,
+                    follows_subs_enabled: first_row.follows_subs_enabled,
+                    created_at,
+                    updated_at,
+                }),
+                _ => None,
+            }
+        });
+
         Ok(User {
             id: first_row.id,
             email: first_row.email.clone(),
@@ -273,16 +298,7 @@ impl User {
             role: first_row.role.clone(),
             created_at: first_row.created_at,
             updated_at: first_row.updated_at,
-            settings: Some(UserSettings {
-                id: first_row.settings_id,
-                user_id: first_row.id,
-                stream_status_enabled: first_row.stream_status_enabled,
-                chat_messages_enabled: first_row.chat_messages_enabled,
-                channel_points_enabled: first_row.channel_points_enabled,
-                follows_subs_enabled: first_row.follows_subs_enabled,
-                created_at: first_row.settings_created_at,
-                updated_at: first_row.settings_updated_at,
-            }),
+            settings,
             accounts,
         })
     }
@@ -438,6 +454,23 @@ impl User {
             })
             .collect();
 
+        let settings = first_row.settings_id.and_then(|settings_id| {
+            // Only create settings if we have the required timestamps
+            match (first_row.settings_created_at, first_row.settings_updated_at) {
+                (Some(created_at), Some(updated_at)) => Some(UserSettings {
+                    id: settings_id,
+                    user_id: first_row.id,
+                    stream_status_enabled: first_row.stream_status_enabled,
+                    chat_messages_enabled: first_row.chat_messages_enabled,
+                    channel_points_enabled: first_row.channel_points_enabled,
+                    follows_subs_enabled: first_row.follows_subs_enabled,
+                    created_at,
+                    updated_at,
+                }),
+                _ => None,
+            }
+        });
+
         Ok(User {
             id: first_row.id,
             email: first_row.email.clone(),
@@ -446,16 +479,7 @@ impl User {
             role: first_row.role.clone(),
             created_at: first_row.created_at,
             updated_at: first_row.updated_at,
-            settings: Some(UserSettings {
-                id: first_row.settings_id,
-                user_id: first_row.id,
-                stream_status_enabled: first_row.stream_status_enabled,
-                chat_messages_enabled: first_row.chat_messages_enabled,
-                channel_points_enabled: first_row.channel_points_enabled,
-                follows_subs_enabled: first_row.follows_subs_enabled,
-                created_at: first_row.settings_created_at,
-                updated_at: first_row.settings_updated_at,
-            }),
+            settings,
             accounts,
         })
     }
@@ -493,25 +517,34 @@ impl User {
         let mut users_map: std::collections::HashMap<Uuid, User> = std::collections::HashMap::new();
 
         for row in rows {
-            let user_entry = users_map.entry(row.id).or_insert_with(|| User {
-                id: row.id,
-                email: row.email.clone(),
-                username: row.username.clone(),
-                password_hash: row.password_hash.clone(),
-                role: row.role.clone(),
-                created_at: row.created_at,
-                updated_at: row.updated_at,
-                settings: Some(UserSettings {
-                    id: row.settings_id,
-                    user_id: row.id,
-                    stream_status_enabled: row.stream_status_enabled,
-                    chat_messages_enabled: row.chat_messages_enabled,
-                    channel_points_enabled: row.channel_points_enabled,
-                    follows_subs_enabled: row.follows_subs_enabled,
-                    created_at: row.settings_created_at,
-                    updated_at: row.settings_updated_at,
-                }),
-                accounts: Vec::new(),
+            let user_entry = users_map.entry(row.id).or_insert_with(|| {
+                let settings = row.settings_id.and_then(|settings_id| {
+                    match (row.settings_created_at, row.settings_updated_at) {
+                        (Some(created_at), Some(updated_at)) => Some(UserSettings {
+                            id: settings_id,
+                            user_id: row.id,
+                            stream_status_enabled: row.stream_status_enabled,
+                            chat_messages_enabled: row.chat_messages_enabled,
+                            channel_points_enabled: row.channel_points_enabled,
+                            follows_subs_enabled: row.follows_subs_enabled,
+                            created_at,
+                            updated_at,
+                        }),
+                        _ => None,
+                    }
+                });
+
+                User {
+                    id: row.id,
+                    email: row.email.clone(),
+                    username: row.username.clone(),
+                    password_hash: row.password_hash.clone(),
+                    role: row.role.clone(),
+                    created_at: row.created_at,
+                    updated_at: row.updated_at,
+                    settings,
+                    accounts: Vec::new(),
+                }
             });
 
             if let Some(account_id) = row.account_id {
@@ -556,8 +589,10 @@ impl User {
     ) -> Result<&UserSettings, sqlx::Error> {
         let now = Utc::now();
 
-        let settings = sqlx::query_as::<_, UserSettings>(
-            r#"
+        let settings = if self.settings.is_some() {
+            // Update existing settings
+            sqlx::query_as::<_, UserSettings>(
+                r#"
                 UPDATE user_settings
                 SET
                     stream_status_enabled = CASE WHEN $1 THEN $5 ELSE NULL END,
@@ -568,7 +603,33 @@ impl User {
                 WHERE user_id = $6
                 RETURNING *
                 "#,
-        )
+            )
+        } else {
+            // Create new settings
+            sqlx::query_as::<_, UserSettings>(
+                r#"
+                INSERT INTO user_settings (
+                    user_id,
+                    stream_status_enabled,
+                    chat_messages_enabled,
+                    channel_points_enabled,
+                    follows_subs_enabled,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    $6,
+                    CASE WHEN $1 THEN $5 ELSE NULL END,
+                    CASE WHEN $2 THEN $5 ELSE NULL END,
+                    CASE WHEN $3 THEN $5 ELSE NULL END,
+                    CASE WHEN $4 THEN $5 ELSE NULL END,
+                    $5,
+                    $5
+                )
+                RETURNING *
+                "#,
+            )
+        }
         .bind(stream_status)
         .bind(chat_messages)
         .bind(channel_points)

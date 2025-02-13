@@ -25,6 +25,11 @@
 			setTimeout(() => (message = null), 3000);
 		};
 	};
+
+	function getSettingValue(settingKey: keyof typeof user.settings): boolean {
+		if (!user.settings) return false;
+		return user.settings[settingKey] !== null;
+	}
 </script>
 
 <section class="flex flex-col items-center justify-center space-y-10">
@@ -89,7 +94,7 @@
 					id="streamStatus"
 					class="checkbox checked:border-primary-500"
 					name="streamStatus"
-					checked={user.settings?.stream_status_enabled !== null}
+					checked={getSettingValue('stream_status_enabled')}
 				/>
 			</div>
 
@@ -105,7 +110,7 @@
 					id="chatMessages"
 					class="checkbox checked:border-primary-500"
 					name="chatMessages"
-					checked={user.settings?.chat_messages_enabled !== null}
+					checked={getSettingValue('chat_messages_enabled')}
 				/>
 			</div>
 
@@ -121,7 +126,7 @@
 					id="channelPoints"
 					class="checkbox checked:border-primary-500"
 					name="channelPoints"
-					checked={user.settings?.channel_points_enabled !== null}
+					checked={getSettingValue('channel_points_enabled')}
 				/>
 			</div>
 
@@ -137,7 +142,7 @@
 					id="followsSubs"
 					class="checkbox checked:border-primary-500"
 					name="followsSubs"
-					checked={user.settings?.follows_subs_enabled !== null}
+					checked={getSettingValue('follows_subs_enabled')}
 				/>
 			</div>
 
