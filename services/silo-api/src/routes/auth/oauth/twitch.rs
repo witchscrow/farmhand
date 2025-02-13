@@ -55,7 +55,16 @@ pub struct TwitchUserInfo {
 }
 
 const BASE_OAUTH_URL: &str = "https://id.twitch.tv/oauth2/authorize";
-const ENABLED_SCOPES: [&str; 3] = ["channel:bot", "user:read:email", "user:read:chat"];
+const ENABLED_SCOPES: [&str; 8] = [
+    "channel:bot",                  // Base bot functionality
+    "user:read:email",              // Email access
+    "user:read:chat",               // Chat access
+    "channel:read:subscriptions",   // For sub events
+    "moderator:read:followers",     // For follow events
+    "channel:read:redemptions",     // For channel points
+    "moderator:read:chat_settings", // For chat message events
+    "channel:manage:redemptions",   // For managing channel point rewards
+];
 
 impl TwitchCredentials {
     pub fn from_env() -> Result<Self, String> {
