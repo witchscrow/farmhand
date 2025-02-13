@@ -252,7 +252,7 @@ async fn setup_chat_messages_webhook(
         TwitchCredentials::from_env().map_err(|e| WebhookError::CredentialsError(e.to_string()))?;
 
     // Your webhook URL
-    let webhook_url = format!("https://your-domain.com/api/twitch/eventsub");
+    let webhook_url = format!("https://staging.api.farmhand.witchscrow.com/eventsub");
 
     let twitch_account = user
         .accounts
