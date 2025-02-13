@@ -86,20 +86,21 @@ async fn list_subscriptions(
         .header("Authorization", format!("Bearer {}", app_access_token))
         .send()
         .await
-        .map_err(|e| WebhookError::EventSubError(e.to_string()))?;
+        .map_err(|e| WebhookError::EventSubError(format!("Failed to list subscriptions. {}", e)))?;
 
     if !response.status().is_success() {
-        let error = response
-            .text()
-            .await
-            .map_err(|e| WebhookError::EventSubError(e.to_string()))?;
+        let error = response.text().await.map_err(|e| {
+            WebhookError::EventSubError(format!("Failed to list subscriptions. {}", e))
+        })?;
         return Err(WebhookError::EventSubError(error));
     }
 
-    response
+    let subscriptions: EventSubListResponse = response
         .json()
         .await
-        .map_err(|e| WebhookError::EventSubError(e.to_string()))
+        .map_err(|e| WebhookError::EventSubError(format!("Failed to list subscriptions. {}", e)))?;
+
+    Ok(subscriptions)
 }
 
 async fn delete_subscription(
@@ -115,13 +116,14 @@ async fn delete_subscription(
         .header("Authorization", format!("Bearer {}", app_access_token))
         .send()
         .await
-        .map_err(|e| WebhookError::EventSubError(e.to_string()))?;
+        .map_err(|e| {
+            WebhookError::EventSubError(format!("Failed to delete subscription. {}", e))
+        })?;
 
     if !response.status().is_success() {
-        let error = response
-            .text()
-            .await
-            .map_err(|e| WebhookError::EventSubError(e.to_string()))?;
+        let error = response.text().await.map_err(|e| {
+            WebhookError::EventSubError(format!("Failed to delete subscription. {}", e))
+        })?;
         return Err(WebhookError::EventSubError(error));
     }
 
