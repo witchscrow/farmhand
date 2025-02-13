@@ -55,21 +55,16 @@ pub struct TwitchUserInfo {
 }
 
 const BASE_OAUTH_URL: &str = "https://id.twitch.tv/oauth2/authorize";
-const ENABLED_SCOPES: [&str; 14] = [
-    "channel:bot",                    // Base bot functionality
-    "user:read:email",                // Email access
-    "user:read:chat",                 // Chat access
-    "user:bot",                       // Required for chat messages with app token
-    "channel:read:subscriptions",     // For sub events
-    "moderator:read:followers",       // For follow events
-    "channel:read:redemptions",       // For channel points
-    "moderator:read:chat_settings",   // For chat message events
-    "channel:manage:redemptions",     // For managing channel point rewards
-    "bits:read",                      // For bits events
-    "moderator:manage:chat_settings", // For managing chat settings
-    "moderator:read:chatters",        // For reading chat participants
-    "moderator:manage:announcements", // For managing announcements
-    "moderator:manage:chat_messages", // For managing chat messages
+const ENABLED_SCOPES: [&str; 9] = [
+    "channel:bot",                  // Base bot functionality
+    "user:read:email",              // Email access
+    "user:read:chat",               // Chat access
+    "user:bot",                     // Required for chat messages with app token
+    "channel:read:subscriptions",   // For sub events
+    "moderator:read:followers",     // For follow events
+    "channel:read:redemptions",     // For channel points
+    "moderator:read:chat_settings", // For chat message events
+    "bits:read",                    // For bits events
 ];
 
 impl TwitchCredentials {
