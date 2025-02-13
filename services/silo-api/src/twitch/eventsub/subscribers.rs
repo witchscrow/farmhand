@@ -45,10 +45,16 @@ pub async fn subscribe_to_events(
     user_id: Uuid,
     twitch_user_id: String,
     settings: &UserSettings,
-    client_id: &str,
-    access_token: &str,
     webhook_url: &str,
 ) -> Result<(), WebhookError> {
+    // Get Twitch credentials and app access token
+    let credentials = TwitchCredentials::from_env().map_err(|e| WebhookError::EventSubError(e))?;
+
+    let app_access_token = credentials
+        .get_app_access_token()
+        .await
+        .map_err(|e| WebhookError::EventSubError(e))?;
+
     let client = Client::new();
     let secret = TwitchCredentials::get_twitch_secret()
         .ok_or("Failed to get Twitch secret")
@@ -66,8 +72,8 @@ pub async fn subscribe_to_events(
             &twitch_user_id,
             webhook_url,
             &secret,
-            client_id,
-            access_token,
+            &credentials.id,
+            &app_access_token,
         ));
 
         subscription_tasks.push(subscribe_to_event(
@@ -77,8 +83,8 @@ pub async fn subscribe_to_events(
             &twitch_user_id,
             webhook_url,
             &secret,
-            client_id,
-            access_token,
+            &credentials.id,
+            &app_access_token,
         ));
     }
 
@@ -90,8 +96,8 @@ pub async fn subscribe_to_events(
             &twitch_user_id,
             webhook_url,
             &secret,
-            client_id,
-            access_token,
+            &credentials.id,
+            &app_access_token,
         ));
     }
 
@@ -103,8 +109,8 @@ pub async fn subscribe_to_events(
             &twitch_user_id,
             webhook_url,
             &secret,
-            client_id,
-            access_token,
+            &credentials.id,
+            &app_access_token,
         ));
     }
 
@@ -116,8 +122,8 @@ pub async fn subscribe_to_events(
             &twitch_user_id,
             webhook_url,
             &secret,
-            client_id,
-            access_token,
+            &credentials.id,
+            &app_access_token,
         ));
 
         subscription_tasks.push(subscribe_to_event(
@@ -127,8 +133,8 @@ pub async fn subscribe_to_events(
             &twitch_user_id,
             webhook_url,
             &secret,
-            client_id,
-            access_token,
+            &credentials.id,
+            &app_access_token,
         ));
     }
 

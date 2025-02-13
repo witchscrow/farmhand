@@ -247,10 +247,6 @@ async fn setup_chat_messages_webhook(
         .await
         .map_err(|e| WebhookError::UserNotFound(e.to_string()))?;
 
-    // Get Twitch credentials
-    let twitch_credentials =
-        TwitchCredentials::from_env().map_err(|e| WebhookError::CredentialsError(e.to_string()))?;
-
     // Your webhook URL
     let webhook_url = format!("https://staging.api.farmhand.witchscrow.com/eventsub");
 
@@ -262,17 +258,10 @@ async fn setup_chat_messages_webhook(
 
     let settings = user.settings.ok_or(WebhookError::SettingsMissing)?;
 
-    let access_token = twitch_account
-        .provider_access_token
-        .as_ref()
-        .ok_or(WebhookError::TokenMissing)?;
-
     subscribe_to_events(
         user_id,
         twitch_account.provider_account_id.clone(),
         &settings,
-        &twitch_credentials.id,
-        access_token,
         &webhook_url,
     )
     .await
