@@ -140,6 +140,9 @@ impl TwitchCredentials {
             .next()
             .ok_or_else(|| "No user data in response".to_string())
     }
+    pub fn get_twitch_secret() -> Option<String> {
+        std::env::var("TWITCH_SECRET").ok()
+    }
 }
 
 pub async fn oauth_redirect() -> Result<Redirect, StatusCode> {

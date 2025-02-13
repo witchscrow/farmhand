@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::{types::Uuid, PgPool};
 
 #[derive(sqlx::FromRow, Serialize, Deserialize, Clone)]
-/// A database representation of a user
 pub struct User {
     pub id: Uuid,
     pub email: String,
@@ -16,8 +15,8 @@ pub struct User {
     pub role: UserRole,
     pub created_at: chrono::NaiveDateTime,
     pub updated_at: chrono::NaiveDateTime,
-    #[sqlx(skip)]
     pub settings: Option<UserSettings>,
+    pub accounts: Vec<Account>,
 }
 
 #[derive(sqlx::FromRow, Serialize, Deserialize, Clone)]
@@ -33,7 +32,21 @@ pub struct UserSettings {
 }
 
 #[derive(sqlx::FromRow, Serialize, Deserialize, Clone)]
-pub struct UserWithSettings {
+pub struct Account {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub provider: String,
+    pub provider_account_id: String,
+    pub provider_access_token: Option<String>,
+    pub provider_refresh_token: Option<String>,
+    pub provider_token_expires_at: Option<DateTime<Utc>>,
+    pub provider_username: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(sqlx::FromRow)]
+struct UserWithSettingsAndAccount {
     // User fields
     pub id: Uuid,
     pub email: String,
@@ -50,6 +63,16 @@ pub struct UserWithSettings {
     pub follows_subs_enabled: Option<DateTime<Utc>>,
     pub settings_created_at: DateTime<Utc>,
     pub settings_updated_at: DateTime<Utc>,
+    // Account fields
+    pub account_id: Option<Uuid>,
+    pub provider: Option<String>,
+    pub provider_account_id: Option<String>,
+    pub provider_access_token: Option<String>,
+    pub provider_refresh_token: Option<String>,
+    pub provider_token_expires_at: Option<DateTime<Utc>>,
+    pub provider_username: Option<String>,
+    pub account_created_at: Option<DateTime<Utc>>,
+    pub account_updated_at: Option<DateTime<Utc>>,
 }
 
 #[derive(sqlx::Type, Serialize, Deserialize, Clone)]
@@ -79,18 +102,12 @@ impl User {
             created_at: chrono::Utc::now().naive_utc(),
             updated_at: chrono::Utc::now().naive_utc(),
             settings: None,
+            accounts: Vec::new(),
         }
     }
     /// Gets a user from the databased based on Username
     pub async fn by_username(username: String, pool: &PgPool) -> Result<Self, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE username = $1")
-            .bind(username)
-            .fetch_one(pool)
-            .await
-    }
-    /// Gets a user from the database based on ID
-    pub async fn by_id(id: Uuid, pool: &PgPool) -> Result<Self, sqlx::Error> {
-        let row = sqlx::query_as::<_, UserWithSettings>(
+        let rows = sqlx::query_as::<_, UserWithSettingsAndAccount>(
             r#"
                 SELECT
                     u.*,
@@ -100,46 +117,258 @@ impl User {
                     s.channel_points_enabled,
                     s.follows_subs_enabled,
                     s.created_at as settings_created_at,
-                    s.updated_at as settings_updated_at
+                    s.updated_at as settings_updated_at,
+                    a.id as account_id,
+                    a.provider,
+                    a.provider_account_id,
+                    a.provider_access_token,
+                    a.provider_refresh_token,
+                    a.provider_token_expires_at,
+                    a.provider_username,
+                    a.created_at as account_created_at,
+                    a.updated_at as account_updated_at
                 FROM users u
                 LEFT JOIN user_settings s ON s.user_id = u.id
+                LEFT JOIN accounts a ON a.user_id = u.id
+                WHERE u.username = $1
+                "#,
+        )
+        .bind(username)
+        .fetch_all(pool)
+        .await?;
+
+        if rows.is_empty() {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        let first_row = &rows[0];
+
+        // Convert the rows into accounts
+        // Convert the rows into accounts
+        let accounts = rows
+            .iter()
+            .filter_map(|row| {
+                // Only create account if we have all required fields
+                row.account_id.and_then(|account_id| {
+                    // Check for required fields
+                    let provider = row.provider.clone()?;
+                    let provider_account_id = row.provider_account_id.clone()?;
+                    let created_at = row.account_created_at?;
+                    let updated_at = row.account_updated_at?;
+
+                    Some(Account {
+                        id: account_id,
+                        user_id: first_row.id,
+                        provider,
+                        provider_account_id,
+                        provider_access_token: row.provider_access_token.clone(),
+                        provider_refresh_token: row.provider_refresh_token.clone(),
+                        provider_token_expires_at: row.provider_token_expires_at,
+                        provider_username: row.provider_username.clone(),
+                        created_at,
+                        updated_at,
+                    })
+                })
+            })
+            .collect();
+
+        Ok(User {
+            id: first_row.id,
+            email: first_row.email.clone(),
+            username: first_row.username.clone(),
+            password_hash: first_row.password_hash.clone(),
+            role: first_row.role.clone(),
+            created_at: first_row.created_at,
+            updated_at: first_row.updated_at,
+            settings: Some(UserSettings {
+                id: first_row.settings_id,
+                user_id: first_row.id,
+                stream_status_enabled: first_row.stream_status_enabled,
+                chat_messages_enabled: first_row.chat_messages_enabled,
+                channel_points_enabled: first_row.channel_points_enabled,
+                follows_subs_enabled: first_row.follows_subs_enabled,
+                created_at: first_row.settings_created_at,
+                updated_at: first_row.settings_updated_at,
+            }),
+            accounts,
+        })
+    }
+    /// Gets a user from the database based on ID
+    pub async fn by_id(id: Uuid, pool: &PgPool) -> Result<Self, sqlx::Error> {
+        let rows = sqlx::query_as::<_, UserWithSettingsAndAccount>(
+            r#"
+                SELECT
+                    u.*,
+                    s.id as settings_id,
+                    s.stream_status_enabled,
+                    s.chat_messages_enabled,
+                    s.channel_points_enabled,
+                    s.follows_subs_enabled,
+                    s.created_at as settings_created_at,
+                    s.updated_at as settings_updated_at,
+                    a.id as account_id,
+                    a.provider,
+                    a.provider_account_id,
+                    a.provider_access_token,
+                    a.provider_refresh_token,
+                    a.provider_token_expires_at,
+                    a.provider_username,
+                    a.created_at as account_created_at,
+                    a.updated_at as account_updated_at
+                FROM users u
+                LEFT JOIN user_settings s ON s.user_id = u.id
+                LEFT JOIN accounts a ON a.user_id = u.id
                 WHERE u.id = $1
                 "#,
         )
         .bind(id)
+        .fetch_all(pool) // Fetch all to get multiple accounts
+        .await?;
+
+        if rows.is_empty() {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        let first_row = &rows[0];
+
+        // Convert the rows into accounts
+        let accounts = rows
+            .iter()
+            .filter_map(|row| {
+                match (
+                    row.account_id,
+                    row.provider.clone(),
+                    row.provider_account_id.clone(),
+                    row.account_created_at,
+                    row.account_updated_at,
+                ) {
+                    (
+                        Some(account_id),
+                        Some(provider),
+                        Some(provider_account_id),
+                        Some(created_at),
+                        Some(updated_at),
+                    ) => Some(Account {
+                        id: account_id,
+                        user_id: first_row.id,
+                        provider,
+                        provider_account_id,
+                        provider_access_token: row.provider_access_token.clone(),
+                        provider_refresh_token: row.provider_refresh_token.clone(),
+                        provider_token_expires_at: row.provider_token_expires_at,
+                        provider_username: row.provider_username.clone(),
+                        created_at,
+                        updated_at,
+                    }),
+                    _ => None,
+                }
+            })
+            .collect();
+
+        Ok(User {
+            id: first_row.id,
+            email: first_row.email.clone(),
+            username: first_row.username.clone(),
+            password_hash: first_row.password_hash.clone(),
+            role: first_row.role.clone(),
+            created_at: first_row.created_at,
+            updated_at: first_row.updated_at,
+            settings: Some(UserSettings {
+                id: first_row.settings_id,
+                user_id: first_row.id,
+                stream_status_enabled: first_row.stream_status_enabled,
+                chat_messages_enabled: first_row.chat_messages_enabled,
+                channel_points_enabled: first_row.channel_points_enabled,
+                follows_subs_enabled: first_row.follows_subs_enabled,
+                created_at: first_row.settings_created_at,
+                updated_at: first_row.settings_updated_at,
+            }),
+            accounts,
+        })
+    }
+    pub async fn add_account(
+        &mut self,
+        provider: String,
+        provider_account_id: String,
+        provider_access_token: Option<String>,
+        provider_refresh_token: Option<String>,
+        provider_token_expires_at: Option<DateTime<Utc>>,
+        provider_username: Option<String>,
+        pool: &PgPool,
+    ) -> Result<&Account, sqlx::Error> {
+        let account = sqlx::query_as::<_, Account>(
+            r#"
+                INSERT INTO accounts (
+                    user_id,
+                    provider,
+                    provider_account_id,
+                    provider_access_token,
+                    provider_refresh_token,
+                    provider_token_expires_at,
+                    provider_username
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING *
+                "#,
+        )
+        .bind(self.id)
+        .bind(provider)
+        .bind(provider_account_id)
+        .bind(provider_access_token)
+        .bind(provider_refresh_token)
+        .bind(provider_token_expires_at)
+        .bind(provider_username)
         .fetch_one(pool)
         .await?;
 
-        Ok(User {
-            id: row.id,
-            email: row.email,
-            username: row.username,
-            password_hash: row.password_hash,
-            role: row.role,
-            created_at: row.created_at,
-            updated_at: row.updated_at,
-            settings: Some(UserSettings {
-                id: row.settings_id,
-                user_id: row.id,
-                stream_status_enabled: row.stream_status_enabled,
-                chat_messages_enabled: row.chat_messages_enabled,
-                channel_points_enabled: row.channel_points_enabled,
-                follows_subs_enabled: row.follows_subs_enabled,
-                created_at: row.settings_created_at,
-                updated_at: row.settings_updated_at,
-            }),
-        })
+        self.accounts.push(account);
+        Ok(self.accounts.last().unwrap())
+    }
+
+    pub async fn get_account_by_provider(&self, provider: &str) -> Option<&Account> {
+        self.accounts.iter().find(|a| a.provider == provider)
+    }
+
+    pub async fn update_account_tokens(
+        &mut self,
+        provider: &str,
+        access_token: String,
+        refresh_token: Option<String>,
+        expires_at: Option<DateTime<Utc>>,
+        pool: &PgPool,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+                UPDATE accounts
+                SET
+                    provider_access_token = $1,
+                    provider_refresh_token = $2,
+                    provider_token_expires_at = $3,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = $4 AND provider = $5
+                "#,
+        )
+        .bind(access_token.clone())
+        .bind(refresh_token.clone())
+        .bind(expires_at)
+        .bind(self.id)
+        .bind(provider)
+        .execute(pool)
+        .await?;
+
+        // Update the local account data
+        if let Some(account) = self.accounts.iter_mut().find(|a| a.provider == provider) {
+            account.provider_access_token = Some(access_token);
+            account.provider_refresh_token = refresh_token;
+            account.provider_token_expires_at = expires_at;
+            account.updated_at = Utc::now();
+        }
+
+        Ok(())
     }
     /// Gets a user from the databased based on Email
     pub async fn by_email(email: String, pool: &PgPool) -> Result<Self, sqlx::Error> {
-        sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
-            .bind(email)
-            .fetch_one(pool)
-            .await
-    }
-    /// Gets all users from the database
-    pub async fn all(pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
-        let rows = sqlx::query_as::<_, UserWithSettings>(
+        let rows = sqlx::query_as::<_, UserWithSettingsAndAccount>(
             r#"
                 SELECT
                     u.*,
@@ -149,22 +378,127 @@ impl User {
                     s.channel_points_enabled,
                     s.follows_subs_enabled,
                     s.created_at as settings_created_at,
-                    s.updated_at as settings_updated_at
+                    s.updated_at as settings_updated_at,
+                    a.id as account_id,
+                    a.provider,
+                    a.provider_account_id,
+                    a.provider_access_token,
+                    a.provider_refresh_token,
+                    a.provider_token_expires_at,
+                    a.provider_username,
+                    a.created_at as account_created_at,
+                    a.updated_at as account_updated_at
                 FROM users u
                 LEFT JOIN user_settings s ON s.user_id = u.id
+                LEFT JOIN accounts a ON a.user_id = u.id
+                WHERE u.email = $1
+                "#,
+        )
+        .bind(email)
+        .fetch_all(pool)
+        .await?;
+
+        if rows.is_empty() {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        let first_row = &rows[0];
+
+        // Convert the rows into accounts
+        let accounts = rows
+            .iter()
+            .filter_map(|row| {
+                match (
+                    row.account_id,
+                    row.provider.clone(),
+                    row.provider_account_id.clone(),
+                    row.account_created_at,
+                    row.account_updated_at,
+                ) {
+                    (
+                        Some(account_id),
+                        Some(provider),
+                        Some(provider_account_id),
+                        Some(created_at),
+                        Some(updated_at),
+                    ) => Some(Account {
+                        id: account_id,
+                        user_id: first_row.id,
+                        provider,
+                        provider_account_id,
+                        provider_access_token: row.provider_access_token.clone(),
+                        provider_refresh_token: row.provider_refresh_token.clone(),
+                        provider_token_expires_at: row.provider_token_expires_at,
+                        provider_username: row.provider_username.clone(),
+                        created_at,
+                        updated_at,
+                    }),
+                    _ => None,
+                }
+            })
+            .collect();
+
+        Ok(User {
+            id: first_row.id,
+            email: first_row.email.clone(),
+            username: first_row.username.clone(),
+            password_hash: first_row.password_hash.clone(),
+            role: first_row.role.clone(),
+            created_at: first_row.created_at,
+            updated_at: first_row.updated_at,
+            settings: Some(UserSettings {
+                id: first_row.settings_id,
+                user_id: first_row.id,
+                stream_status_enabled: first_row.stream_status_enabled,
+                chat_messages_enabled: first_row.chat_messages_enabled,
+                channel_points_enabled: first_row.channel_points_enabled,
+                follows_subs_enabled: first_row.follows_subs_enabled,
+                created_at: first_row.settings_created_at,
+                updated_at: first_row.settings_updated_at,
+            }),
+            accounts,
+        })
+    }
+    /// Gets all users from the database
+    pub async fn all(pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        let rows = sqlx::query_as::<_, UserWithSettingsAndAccount>(
+            r#"
+                SELECT
+                    u.*,
+                    s.id as settings_id,
+                    s.stream_status_enabled,
+                    s.chat_messages_enabled,
+                    s.channel_points_enabled,
+                    s.follows_subs_enabled,
+                    s.created_at as settings_created_at,
+                    s.updated_at as settings_updated_at,
+                    a.id as account_id,
+                    a.provider,
+                    a.provider_account_id,
+                    a.provider_access_token,
+                    a.provider_refresh_token,
+                    a.provider_token_expires_at,
+                    a.provider_username,
+                    a.created_at as account_created_at,
+                    a.updated_at as account_updated_at
+                FROM users u
+                LEFT JOIN user_settings s ON s.user_id = u.id
+                LEFT JOIN accounts a ON a.user_id = u.id
                 "#,
         )
         .fetch_all(pool)
         .await?;
 
-        Ok(rows
-            .into_iter()
-            .map(|row| User {
+        // Group rows by user ID to handle multiple accounts per user
+        let mut users_map: std::collections::HashMap<Uuid, User> = std::collections::HashMap::new();
+
+        for row in rows {
+            let user_entry = users_map.entry(row.id).or_insert_with(|| User {
                 id: row.id,
-                email: row.email,
-                username: row.username,
-                password_hash: row.password_hash,
-                role: row.role,
+                email: row.email.clone(),
+                username: row.username.clone(),
+                password_hash: row.password_hash.clone(),
+                role: row.role.clone(),
                 created_at: row.created_at,
                 updated_at: row.updated_at,
                 settings: Some(UserSettings {
@@ -177,8 +511,39 @@ impl User {
                     created_at: row.settings_created_at,
                     updated_at: row.settings_updated_at,
                 }),
-            })
-            .collect())
+                accounts: Vec::new(),
+            });
+
+            if let Some(account_id) = row.account_id {
+                // Only add account if we have all required fields
+                if let (
+                    Some(provider),
+                    Some(provider_account_id),
+                    Some(created_at),
+                    Some(updated_at),
+                ) = (
+                    row.provider.clone(),
+                    row.provider_account_id.clone(),
+                    row.account_created_at,
+                    row.account_updated_at,
+                ) {
+                    user_entry.accounts.push(Account {
+                        id: account_id,
+                        user_id: row.id,
+                        provider,
+                        provider_account_id,
+                        provider_access_token: row.provider_access_token,
+                        provider_refresh_token: row.provider_refresh_token,
+                        provider_token_expires_at: row.provider_token_expires_at,
+                        provider_username: row.provider_username,
+                        created_at,
+                        updated_at,
+                    });
+                }
+            }
+        }
+
+        Ok(users_map.into_values().collect())
     }
     /// Updates the user's settings
     pub async fn update_settings(

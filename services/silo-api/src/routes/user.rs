@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use anyhow::Result;
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -8,12 +9,15 @@ use axum::{
 };
 use common::db::users::{User, UserRole, UserSettings};
 use serde::{Deserialize, Serialize};
+use sqlx::{Pool, Postgres};
 
-use crate::AppState;
+use crate::{twitch::eventsub::subscribers::subscribe_to_events, AppState};
+
+use super::auth::oauth::twitch::TwitchCredentials;
 
 #[derive(Serialize)]
 /// User data with sensitive data stripped out
-struct UserResponse {
+pub struct UserResponse {
     username: String,
     email: String,
     role: UserRole,
@@ -150,12 +154,38 @@ pub struct UpdateUserRequest {
     settings: UpdateUserSettings,
 }
 
+#[derive(Debug)]
+pub enum WebhookError {
+    UserNotFound(String),
+    CredentialsError(String),
+    TwitchAccountMissing,
+    SettingsMissing,
+    TokenMissing,
+    EventSubError(String),
+}
+
+impl std::fmt::Display for WebhookError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WebhookError::UserNotFound(e) => write!(f, "User not found: {}", e),
+            WebhookError::CredentialsError(e) => write!(f, "Credentials error: {}", e),
+            WebhookError::TwitchAccountMissing => write!(f, "User does not have a Twitch account"),
+            WebhookError::SettingsMissing => write!(f, "User does not have settings"),
+            WebhookError::TokenMissing => write!(f, "User does not have a Twitch access token"),
+            WebhookError::EventSubError(e) => write!(f, "EventSub error: {}", e),
+        }
+    }
+}
+
+impl std::error::Error for WebhookError {}
+
 /// Saves a user
+#[axum::debug_handler]
 pub async fn save_user(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<Option<User>>,
     Json(post): Json<UpdateUserRequest>,
-) -> impl IntoResponse {
+) -> Result<Json<UserResponse>, StatusCode> {
     let Some(user) = user else {
         tracing::error!("Failed to get user");
         return Err(StatusCode::BAD_REQUEST);
@@ -188,7 +218,10 @@ pub async fn save_user(
         Ok(settings) => {
             // Check if chat messages was newly enabled
             if post.settings.chat_messages_enabled && !was_chat_enabled {
-                setup_chat_messages_webhook(user.id).await;
+                if let Err(e) = setup_chat_messages_webhook(user.id, &state.db).await {
+                    tracing::error!("Failed to set up EventSub subscriptions: {}", e);
+                    return Err(StatusCode::INTERNAL_SERVER_ERROR);
+                }
             }
 
             Ok(Json(UserResponse {
@@ -206,8 +239,49 @@ pub async fn save_user(
 }
 
 // Function to handle chat message webhook setup
-async fn setup_chat_messages_webhook(user_id: uuid::Uuid) {
-    // Placeholder for now
-    tracing::info!("Setting up chat messages webhook for user {}", user_id);
-    // TODO: Implement actual webhook setup
+async fn setup_chat_messages_webhook(
+    user_id: uuid::Uuid,
+    db: &Pool<Postgres>,
+) -> Result<(), WebhookError> {
+    let user = User::by_id(user_id, db)
+        .await
+        .map_err(|e| WebhookError::UserNotFound(e.to_string()))?;
+
+    // Get Twitch credentials
+    let twitch_credentials =
+        TwitchCredentials::from_env().map_err(|e| WebhookError::CredentialsError(e.to_string()))?;
+
+    // Your webhook URL
+    let webhook_url = format!("https://your-domain.com/api/twitch/eventsub");
+
+    let twitch_account = user
+        .accounts
+        .iter()
+        .find(|account| account.provider == "twitch")
+        .ok_or(WebhookError::TwitchAccountMissing)?;
+
+    let settings = user.settings.ok_or(WebhookError::SettingsMissing)?;
+
+    let access_token = twitch_account
+        .provider_access_token
+        .as_ref()
+        .ok_or(WebhookError::TokenMissing)?;
+
+    subscribe_to_events(
+        user_id,
+        twitch_account.provider_account_id.clone(),
+        &settings,
+        &twitch_credentials.id,
+        access_token,
+        &webhook_url,
+    )
+    .await
+    .map_err(|e| WebhookError::EventSubError(e.to_string()))?;
+
+    tracing::info!(
+        "Successfully set up EventSub subscriptions for user {}",
+        user_id
+    );
+
+    Ok(())
 }
