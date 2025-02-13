@@ -9,9 +9,19 @@ use crate::routes::{auth::oauth::twitch::TwitchCredentials, user::WebhookError};
 const TWITCH_API_URL: &str = "https://api.twitch.tv/helix/eventsub/subscriptions";
 
 #[derive(Debug, Serialize)]
-struct EventSubCondition {
-    broadcaster_user_id: String,
-    // Add other condition fields as needed
+#[serde(untagged)]
+enum EventSubCondition {
+    Basic {
+        broadcaster_user_id: String,
+    },
+    ChatMessage {
+        broadcaster_user_id: String,
+        user_id: String,
+    },
+    Follow {
+        broadcaster_user_id: String,
+        moderator_user_id: String,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -162,18 +172,32 @@ async fn subscribe_to_event(
     client_id: &str,
     access_token: &str,
 ) -> Result<(), WebhookError> {
+    let condition = match event_type {
+        "channel.chat.message" => EventSubCondition::ChatMessage {
+            broadcaster_user_id: broadcaster_id.to_string(),
+            user_id: broadcaster_id.to_string(),
+        },
+        "channel.follow" => EventSubCondition::Follow {
+            broadcaster_user_id: broadcaster_id.to_string(),
+            moderator_user_id: broadcaster_id.to_string(), // Use broadcaster as moderator
+        },
+        _ => EventSubCondition::Basic {
+            broadcaster_user_id: broadcaster_id.to_string(),
+        },
+    };
+
     let request = EventSubRequest {
         event_type: event_type.to_string(),
         version: version.to_string(),
-        condition: EventSubCondition {
-            broadcaster_user_id: broadcaster_id.to_string(),
-        },
+        condition,
         transport: EventSubTransport {
             method: "webhook".to_string(),
             callback: webhook_url.to_string(),
             secret: secret.to_string(),
         },
     };
+
+    tracing::debug!("Sending EventSub request: {:?}", request);
 
     let response = client
         .post(TWITCH_API_URL)
@@ -184,6 +208,12 @@ async fn subscribe_to_event(
         .send()
         .await
         .map_err(|e| WebhookError::EventSubError(e.to_string()))?;
+
+    // Handle 409 Conflict as a non-error
+    if response.status().as_u16() == 409 {
+        tracing::info!("Subscription already exists for event type: {}", event_type);
+        return Ok(());
+    }
 
     if !response.status().is_success() {
         let response_error = response
