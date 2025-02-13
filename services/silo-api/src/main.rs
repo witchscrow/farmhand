@@ -3,6 +3,7 @@ mod config;
 mod jwt;
 mod middleware;
 mod routes;
+mod twitch;
 
 pub use app_state::AppState;
 use axum::{
@@ -68,10 +69,16 @@ async fn main() {
                 ),
         )
         .nest(
+            "/eventsub",
+            Router::new()
+                .route("/", post(twitch::eventsub::receivers::handle_webhook))
+                .with_state(state.clone()),
+        )
+        .nest(
             "/user",
             Router::new()
                 .route("/me", get(routes::user::get_self))
-                .route("/me", put(routes::user::save_user))
+                .route("/me", post(routes::user::save_user))
                 .layer(axum_mw::from_fn_with_state(
                     state.clone(),
                     middleware::auth::auth_middleware,
