@@ -143,35 +143,6 @@ pub async fn subscribe_to_events(
         .await
         .map_err(|e| WebhookError::EventSubError(e))?;
 
-    // First list and clean up existing subscriptions
-    let existing = list_subscriptions(&credentials.id, &app_access_token).await?;
-    for sub in existing.data {
-        if let Ok(condition) = serde_json::from_value::<EventSubCondition>(sub.condition) {
-            match condition {
-                EventSubCondition::Basic {
-                    broadcaster_user_id,
-                }
-                | EventSubCondition::ChatMessage {
-                    broadcaster_user_id,
-                    ..
-                }
-                | EventSubCondition::Follow {
-                    broadcaster_user_id,
-                    ..
-                }
-                | EventSubCondition::Subscribe {
-                    broadcaster_user_id,
-                }
-                | EventSubCondition::ChannelPoints {
-                    broadcaster_user_id,
-                } if broadcaster_user_id == twitch_user_id => {
-                    delete_subscription(&sub.id, &credentials.id, &app_access_token).await?;
-                }
-                _ => {}
-            }
-        }
-    }
-
     let client = Client::new();
     let secret = TwitchCredentials::get_twitch_secret()
         .ok_or("Failed to get Twitch secret")
