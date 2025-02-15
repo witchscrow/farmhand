@@ -24,10 +24,10 @@ COPY migrations/ migrations/
 RUN cargo build --release --bin api
 
 # Runtime stage
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    libssl-dev \
+    libssl3 \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/api /usr/local/bin/api
