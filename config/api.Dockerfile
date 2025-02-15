@@ -5,6 +5,7 @@ FROM chef AS planner
 COPY Cargo.lock Cargo.lock
 COPY Cargo.toml Cargo.toml
 COPY src/ src/
+COPY migrations/ migrations/
 RUN cargo chef prepare --recipe-path recipe.json
 
 FROM chef AS builder
@@ -19,6 +20,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY Cargo.lock Cargo.lock
 COPY Cargo.toml Cargo.toml
 COPY src/ src/
+COPY migrations/ migrations/
 RUN cargo build --release --bin api
 
 # Runtime stage

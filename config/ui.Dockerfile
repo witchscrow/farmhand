@@ -5,17 +5,16 @@ FROM --platform=$BUILDPLATFORM node:22-slim as builder
 WORKDIR /app
 
 # Copy root package.json and yarn.lock
-COPY package.json yarn.lock ./
-
-# Copy UI package.json
-COPY services/barn-ui/package.json services/barn-ui/
-COPY services/barn-ui/yarn.lock services/barn-ui/
+COPY package.json package.json
+COPY yarn.lock yarn.lock
+COPY web/package.json web/package.json
+COPY web/yarn.lock web/yarn.lock
 
 # Install all dependencies (including dev dependencies)
 RUN yarn install
 
 # Copy UI source code
-COPY services/barn-ui/ services/barn-ui/
+COPY web/ web/
 
 # Build the UI application
 RUN yarn workspace web build
@@ -27,12 +26,12 @@ FROM --platform=$TARGETPLATFORM node:22-slim
 WORKDIR /app
 
 # Copy only production dependencies
-COPY --from=builder /app/services/barn-ui/package.json ./
-COPY --from=builder /app/services/barn-ui/yarn.lock ./
+COPY --from=builder /app/web/package.json ./
+COPY --from=builder /app/web/yarn.lock ./
 RUN yarn install --production
 
 # Copy built application
-COPY --from=builder /app/services/barn-ui/build ./build
+COPY --from=builder /app/web/build ./build
 
 # Expose port
 EXPOSE 3000
