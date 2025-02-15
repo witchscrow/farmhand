@@ -1,5 +1,5 @@
 # Build stage
-FROM --platform=$BUILDPLATFORM rust:1.82-slim-bullseye as builder
+FROM --platform=$BUILDPLATFORM rust:1.84.1-slim-bullseye as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -14,9 +14,7 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 
 # Copy all workspace members
-COPY crates/ ./crates/
-COPY services/forge-queue ./services/forge-queue
-COPY services/silo-api ./services/silo-api
+COPY src/ .
 
 # Build the project for release
 WORKDIR /app

@@ -5,5 +5,4 @@ target/
 !.env.example
 uploads/
 /videos
-storage/
 .bin/
