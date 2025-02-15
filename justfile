@@ -1,5 +1,10 @@
 set dotenv-load := true
 
+# Initialization Commands
+init:
+    @just create-db
+    cargo run --bin up
+
 # Build Commands
 build-api:
     cargo build --bin api
@@ -10,8 +15,6 @@ dev-web:
     yarn dev
 
 # Database commands
-init-db: create-db migrate
-
 create-db:
     sqlx database create
 
@@ -51,7 +54,7 @@ verify:
 
 # Nuke all data
 nuke:
-    @just drop-db
+    cargo run --bin down
     @just clean
 
 # Install all dependencies
@@ -59,7 +62,3 @@ nuke:
 install:
     yarn
     cargo check
-
-init:
-    @just install
-    @just init-db

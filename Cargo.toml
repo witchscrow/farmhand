@@ -11,6 +11,10 @@ path = "src/bin/api.rs"
 name = "job_runner"
 path = "src/bin/job_runner.rs"
 
+[[bin]]
+name = "up"
+path = "src/bin/up.rs"
+
 [dependencies]
 anyhow = "1.0.95"
 async-trait = "0.1"
@@ -48,3 +52,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 urlencoding = "2.1"
 uuid = { version = "1.6", features = ["v4", "serde"] }
 walkdir = "2.5.0"
+async-nats = "0.38.0"
