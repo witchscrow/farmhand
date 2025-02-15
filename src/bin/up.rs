@@ -48,9 +48,10 @@ async fn init_project_nats() {
         .expect("Failed to connect to NATS");
 
     // Create the job queue stream
-    let jq_name = "farmhand_jobs".to_string();
+    let jq_name = "FARMHAND_JOBS".to_string();
     let jq_desc = Some("Farmhand job runner queue".to_string());
-    workers::Queue::new(jq_name, jq_desc, nats_client)
+    let jq_subjects = vec!["farmhand_jobs.>".to_string()];
+    workers::Queue::new(jq_name, jq_desc, jq_subjects, nats_client)
         .await
         .expect("Failed to create worker queue");
 

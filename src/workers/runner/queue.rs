@@ -26,13 +26,14 @@ impl Queue {
     pub async fn new(
         name: String,
         description: Option<String>,
+        subjects: Vec<String>,
         nats_client: Client,
     ) -> Result<Self, QueueError> {
         let jetstream = Self::create_jetstream(nats_client);
         jetstream
             .create_stream(jetstream::stream::Config {
-                name: name.clone().to_owned(),
-                subjects: vec![name.to_string()],
+                name: name.clone(),
+                subjects,
                 description,
                 ..Default::default()
             })

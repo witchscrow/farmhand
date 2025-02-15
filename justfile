@@ -1,9 +1,13 @@
 set dotenv-load := true
 
 # Initialization Commands
-init:
+up:
     @just create-db
     cargo run --bin up
+
+# De-initialization Commands
+down:
+    cargo run --bin down
 
 # Build Commands
 build-api:
@@ -54,7 +58,7 @@ verify:
 
 # Nuke all data
 nuke:
-    cargo run --bin down
+    @just down
     @just clean
 
 # Install all dependencies

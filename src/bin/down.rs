@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
     // Delete all streams
     tracing::debug!("Deleting all streams");
     let nats_client = workers::create_nats_client().await?;
-    let jq_name = "farmhand_jobs".to_string();
+    let jq_name = "FARMHAND_JOBS".to_string();
     workers::Queue::delete(jq_name, nats_client).await?;
 
     tracing::info!("Successfully deleted all streams");
