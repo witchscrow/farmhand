@@ -5,6 +5,8 @@ use async_nats::{
 
 use crate::error::QueueError;
 
+#[allow(dead_code)]
+/// TODO: Remove dead code annotation after implementing
 pub struct Queue {
     name: String,
     jetstream: Context,
