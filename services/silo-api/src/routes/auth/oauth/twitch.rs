@@ -55,7 +55,17 @@ pub struct TwitchUserInfo {
 }
 
 const BASE_OAUTH_URL: &str = "https://id.twitch.tv/oauth2/authorize";
-const ENABLED_SCOPES: [&str; 3] = ["channel:bot", "user:read:email", "user:read:chat"];
+const ENABLED_SCOPES: [&str; 9] = [
+    "channel:bot",                  // Base bot functionality
+    "user:read:email",              // Email access
+    "user:read:chat",               // Chat access
+    "user:bot",                     // Required for chat messages with app token
+    "channel:read:subscriptions",   // For sub events
+    "moderator:read:followers",     // For follow events
+    "channel:read:redemptions",     // For channel points
+    "moderator:read:chat_settings", // For chat message events
+    "bits:read",                    // For bits events
+];
 
 impl TwitchCredentials {
     pub fn from_env() -> Result<Self, String> {
@@ -142,6 +152,40 @@ impl TwitchCredentials {
     }
     pub fn get_twitch_secret() -> Option<String> {
         std::env::var("TWITCH_SECRET").ok()
+    }
+    pub async fn get_app_access_token(&self) -> Result<String, String> {
+        let client = Client::new();
+        let response = client
+            .post("https://id.twitch.tv/oauth2/token")
+            .form(&[
+                ("client_id", &self.id),
+                ("client_secret", &self.secret),
+                ("grant_type", &"client_credentials".to_string()),
+            ])
+            .send()
+            .await
+            .map_err(|e| format!("Failed to send token request: {}", e))?;
+
+        if !response.status().is_success() {
+            return Err(format!(
+                "Twitch returned error status: {}",
+                response.status()
+            ));
+        }
+
+        #[derive(Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            expires_in: i32,
+            token_type: String,
+        }
+
+        let token_data: TokenResponse = response
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse token response: {}", e))?;
+
+        Ok(token_data.access_token)
     }
 }
 
