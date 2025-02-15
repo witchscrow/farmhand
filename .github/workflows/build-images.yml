@@ -52,48 +52,14 @@ jobs:
           platforms: linux/amd64
           tags: |
             ${{ steps.image_tag.outputs.value }}
-          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache,mode=max
+          cache-from: |
+            type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache
+            type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:latest
+          cache-to: |
+            type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.API_IMAGE }}:buildcache,mode=max
 
       - name: Image digest
         run: echo "API image digest $(doctl registry repository digest-list ${{ vars.API_IMAGE }} --format Tag,Digest --no-header | grep ${{ needs.setup.outputs.version }})"
-
-  build-queue:
-    needs: setup
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set image tag
-        id: image_tag
-        run: echo "value=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:${{ needs.setup.outputs.version }}" >> $GITHUB_OUTPUT
-
-      - name: Install doctl
-        uses: digitalocean/action-doctl@v2
-        with:
-          token: ${{ secrets.DO_REGISTRY_KEY }}
-
-      - name: Log in to DO Container Registry
-        run: doctl registry login --expiry-seconds 600
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and push Queue image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: config/queue.Dockerfile
-          push: true
-          platforms: linux/amd64
-          tags: |
-            ${{ steps.image_tag.outputs.value }}
-          cache-from: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache
-          cache-to: type=registry,ref=${{ secrets.DO_REGISTRY }}/${{ vars.QUEUE_IMAGE }}:buildcache,mode=max
-
-      - name: Image digest
-        run: echo "Queue image digest $(doctl registry repository digest-list ${{ vars.QUEUE_IMAGE }} --format Tag,Digest --no-header | grep ${{ needs.setup.outputs.version }})"
 
   build-ui:
     needs: setup

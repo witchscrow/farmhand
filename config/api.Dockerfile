@@ -1,52 +1,33 @@
-# Build stage
-FROM --platform=$BUILDPLATFORM rust:1.82-slim-bullseye as builder
+FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
+WORKDIR /app
 
-# Install build dependencies
+FROM chef AS planner
+COPY Cargo.lock Cargo.lock
+COPY Cargo.toml Cargo.toml
+COPY src/ src/
+RUN cargo chef prepare --recipe-path recipe.json
+
+FROM chef AS builder
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Create a new empty shell project
-WORKDIR /app
-
-# Copy workspace configuration
-COPY Cargo.toml Cargo.lock ./
-
-# Copy all workspace members
-COPY crates/ ./crates/
-COPY services/forge-queue ./services/forge-queue
-COPY services/silo-api ./services/silo-api
-
-# Build the project for release
-WORKDIR /app
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/app/target \
-    cargo build --release -p api && \
-    cp /app/target/release/api /usr/local/bin/api
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY Cargo.lock Cargo.lock
+COPY Cargo.toml Cargo.toml
+COPY src/ src/
+RUN cargo build --release --bin api
 
 # Runtime stage
-FROM --platform=$TARGETPLATFORM debian:bullseye-slim
-
-# Install runtime dependencies
+FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl1.1 \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
-
-# Create uploads directory
-RUN mkdir -p /app/uploads && \
-    chmod 777 /app/uploads
-
-# Set working directory
-WORKDIR /app
-
-# Copy the binary from builder
-COPY --from=builder /usr/local/bin/api /usr/local/bin/api
-
-# Expose the default port
+COPY --from=builder /app/target/release/api /usr/local/bin/api
 EXPOSE 3000
-
-# Set the entrypoint
 ENTRYPOINT ["/usr/local/bin/api"]
