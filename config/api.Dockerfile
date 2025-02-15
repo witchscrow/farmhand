@@ -27,7 +27,7 @@ RUN cargo build --release --bin api
 FROM debian:bullseye-slim
 RUN apt-get update && apt-get install -y \
     ca-certificates \
-    libssl1.1 \
+    libssl3 \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/api /usr/local/bin/api
