@@ -14,9 +14,17 @@ build-api:
     cargo build --bin api
 
 # Dev Commands
-dev-ui: dev-web
+
+alias dev-ui := dev-web
+# Run the web server in dev mode
 dev-web:
     yarn dev
+
+# Run the api server in dev mode
+dev-api:
+    cargo run --bin api
+
+# Run the job runner in dev mode
 dev-queue:
     cargo run --bin job_runner
 

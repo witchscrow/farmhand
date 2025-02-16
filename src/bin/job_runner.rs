@@ -1,5 +1,6 @@
 use anyhow::Result;
-use farmhand::workers;
+use async_nats::jetstream::AckKind;
+use farmhand::workers::{self, runner::process_message};
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -31,7 +32,21 @@ async fn main() -> Result<()> {
         let mut jobs = consumer.fetch().max_messages(3).messages().await?;
 
         while let Some(job) = jobs.next().await {
-            tracing::debug!("Received job: {:?}", job);
+            // Make sure the job is good to go
+            let Ok(job) = job else {
+                tracing::error!("Failed to receive job");
+                continue;
+            };
+            // Process the message itself, ack on success, nack on failure
+            match process_message(&job.message).await {
+                Ok(_) => job.ack().await.expect("Failed to ack job"),
+                Err(err) => {
+                    tracing::error!("Failed to process job: {}", err);
+                    job.ack_with(AckKind::Nak(None))
+                        .await
+                        .expect("Failed to nack job");
+                }
+            }
         }
 
         // Optional: Add a small delay to prevent tight loops when there are no jobs

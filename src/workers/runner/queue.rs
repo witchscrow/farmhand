@@ -2,6 +2,7 @@ use async_nats::{
     jetstream::{
         self,
         consumer::{pull::Config, Consumer},
+        stream::RetentionPolicy,
         Context,
     },
     Client,
@@ -39,6 +40,7 @@ impl Queue {
                 name: name.clone(),
                 subjects,
                 description,
+                retention: RetentionPolicy::WorkQueue,
                 ..Default::default()
             })
             .await
@@ -73,11 +75,22 @@ impl Queue {
         let config = jetstream::consumer::pull::Config {
             durable_name: name,
             filter_subject: filter,
+            max_deliver: 3,
             ..Default::default()
         };
         self.jetstream
             .create_consumer_on_stream(config, self.name.to_string())
             .await
             .map_err(|e| QueueError::InvalidConnection(e.to_string()))
+    }
+    /// Publishes a message to the queue
+    pub async fn publish(&self, subject: String, message: String) -> Result<(), QueueError> {
+        tracing::debug!("Publishing message to subject {}", subject);
+        self.jetstream
+            .publish(subject, message.into())
+            .await
+            .map_err(|e| QueueError::InvalidConnection(e.to_string()))?;
+
+        Ok(())
     }
 }

@@ -10,7 +10,10 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::sync::Arc;
 
-use crate::api::{app_state::AppState, routes::auth::oauth::twitch::TwitchCredentials};
+use crate::{
+    api::{app_state::AppState, routes::auth::oauth::twitch::TwitchCredentials},
+    workers::runner::chat,
+};
 
 type HmacSha256 = Hmac<Sha256>;
 const HMAC_PREFIX: &str = "sha256=";
@@ -42,7 +45,7 @@ struct Notification {
 }
 
 pub async fn handle_webhook(
-    State(_state): State<Arc<AppState>>,
+    State(state): State<Arc<AppState>>,
     headers: HeaderMap,
     body: Bytes,
 ) -> impl IntoResponse {
@@ -95,11 +98,39 @@ pub async fn handle_webhook(
     match message_type {
         "notification" => {
             tracing::debug!("Event type: {}", notification.subscription.event_type);
+            let notification_type = notification.subscription.event_type;
+            match notification_type.as_str() {
+                // TODO: Replace with channel.chat.message when ready
+                // NOTE: This is set as channel.subscribe because the twitch CLI does not support channel.chat.message yet
+                "channel.subscribe" => {
+                    tracing::debug!("Channel chat message received");
+                    let chatter =
+                        chat::User::new("some_chatter".to_string(), "some_id".to_string());
+                    let broadcaster =
+                        chat::User::new("some_broadcaster".to_string(), "some_id".to_string());
+                    let message = chat::ChatMessagePayload::new(
+                        "some_message".to_string(),
+                        chatter,
+                        broadcaster,
+                    );
+                    let json =
+                        serde_json::to_string(&message).expect("Failed to serialize message");
+                    state
+                        .job_queue
+                        .publish("farmhand_jobs.chat.save".to_string(), json)
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("Failed to publish chat message job: {}", e);
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })
+                        .expect("Failed to publish chat message job");
+                }
+                _ => {
+                    tracing::warn!("Unhandled notification event type: {}", notification_type);
+                }
+            }
             if let Some(event) = notification.event {
-                tracing::debug!(
-                    "Event data: {}",
-                    serde_json::to_string_pretty(&event).unwrap()
-                );
+                tracing::debug!("Event data: {}", serde_json::to_string(&event).unwrap());
             }
             StatusCode::NO_CONTENT.into_response()
         }
