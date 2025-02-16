@@ -1,5 +1,9 @@
 use async_nats::{
-    jetstream::{self, Context},
+    jetstream::{
+        self,
+        consumer::{pull::Config, Consumer},
+        Context,
+    },
     Client,
 };
 
@@ -59,5 +63,21 @@ impl Queue {
     /// Creates a new jetstream context
     fn create_jetstream(nats_client: Client) -> Context {
         jetstream::new(nats_client)
+    }
+    /// Creates a new consumer
+    pub async fn create_consumer(
+        &self,
+        name: Option<String>,
+        filter: String,
+    ) -> Result<Consumer<Config>, QueueError> {
+        let config = jetstream::consumer::pull::Config {
+            durable_name: name,
+            filter_subject: filter,
+            ..Default::default()
+        };
+        self.jetstream
+            .create_consumer_on_stream(config, self.name.to_string())
+            .await
+            .map_err(|e| QueueError::InvalidConnection(e.to_string()))
     }
 }

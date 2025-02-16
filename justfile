@@ -17,6 +17,8 @@ build-api:
 dev-ui: dev-web
 dev-web:
     yarn dev
+dev-queue:
+    cargo run --bin job_runner
 
 # Database commands
 create-db:
