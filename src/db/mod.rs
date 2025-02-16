@@ -25,11 +25,10 @@ pub async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
 
     Ok(())
 }
-
 /// Function for deleting all data from the database
 pub async fn delete_all_data(pool: &PgPool) -> Result<(), sqlx::Error> {
     tracing::debug!("Deleting all data from the database");
-    sqlx::query!(
+    sqlx::query(
         "DO $$ DECLARE
             r RECORD;
         BEGIN
