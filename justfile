@@ -1,17 +1,34 @@
 set dotenv-load := true
 
+# Initialization Commands
+up:
+    @just create-db
+    cargo run --bin up
+
+# De-initialization Commands
+down:
+    cargo run --bin down
+
 # Build Commands
 build-api:
     cargo build --bin api
 
 # Dev Commands
-dev-ui: dev-web
+
+alias dev-ui := dev-web
+# Run the web server in dev mode
 dev-web:
     yarn dev
 
-# Database commands
-init-db: create-db migrate
+# Run the api server in dev mode
+dev-api:
+    cargo run --bin api
 
+# Run the job runner in dev mode
+dev-queue:
+    cargo run --bin job_runner
+
+# Database commands
 create-db:
     sqlx database create
 
@@ -51,7 +68,7 @@ verify:
 
 # Nuke all data
 nuke:
-    @just drop-db
+    @just down
     @just clean
 
 # Install all dependencies
@@ -59,7 +76,3 @@ nuke:
 install:
     yarn
     cargo check
-
-init:
-    @just install
-    @just init-db
