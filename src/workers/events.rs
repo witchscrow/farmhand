@@ -6,7 +6,7 @@ pub enum Event {
     ChatMessage(ChatMessagePayload),
 }
 
-const EVENT_PREFIX: &str = "farmhand";
+pub const EVENT_PREFIX: &str = "farmhand";
 
 impl Event {
     pub fn get_subject(&self) -> String {

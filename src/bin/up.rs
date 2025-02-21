@@ -1,5 +1,8 @@
 use anyhow::Result;
-use farmhand::{db, workers};
+use farmhand::{
+    db,
+    workers::{self, events::EVENT_PREFIX},
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -50,7 +53,8 @@ async fn init_project_nats() {
     // Create the job queue stream
     let jq_name = "FARMHAND_JOBS".to_string();
     let jq_desc = Some("Farmhand job runner queue".to_string());
-    let jq_subjects = vec!["farmhand_jobs.>".to_string()];
+    let all_events = format!("{}.>", EVENT_PREFIX);
+    let jq_subjects = vec![all_events];
     workers::Queue::new(jq_name, jq_desc, jq_subjects, nats_client)
         .await
         .expect("Failed to create worker queue");
