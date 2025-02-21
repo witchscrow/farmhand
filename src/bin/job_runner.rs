@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_nats::jetstream::AckKind;
-use farmhand::workers::{self, runner::process_message};
+use farmhand::workers::{self, events::EVENT_PREFIX, runner::process_message};
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -22,7 +22,7 @@ async fn main() -> Result<()> {
         .expect("Failed to create worker queue");
 
     // Create a consumer for the queue
-    let subject = "farmhand_jobs.>".to_string(); // All jobs
+    let subject = format!("{}.jobs.>", EVENT_PREFIX); // All farmhand jobs
     let runner_name = "farmhand_runner_1".to_string();
     tracing::info!("Listening for jobs {} on {}", subject, runner_name);
     let consumer = queue.create_consumer(Some(runner_name), subject).await?;
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
             }
         }
 
-        // Optional: Add a small delay to prevent tight loops when there are no jobs
+        // Add a small delay to prevent tight loops when there are no jobs
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
     }
 }
