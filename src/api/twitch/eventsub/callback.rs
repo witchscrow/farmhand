@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use crate::{
     api::{app_state::AppState, routes::auth::oauth::twitch::TwitchCredentials},
-    workers::runner::chat,
+    workers::{events::Event, runner::chat::ChatMessagePayload},
 };
 
 type HmacSha256 = Hmac<Sha256>;
@@ -100,17 +100,28 @@ pub async fn handle_webhook(
             tracing::debug!("Event type: {}", notification.subscription.event_type);
             let notification_type = notification.subscription.event_type;
             match notification_type.as_str() {
-                // TODO: Replace with channel.chat.message when ready
-                // NOTE: This is set as channel.subscribe because the twitch CLI does not support channel.chat.message yet
                 "channel.chat.message" => {
                     tracing::debug!("Channel chat message received");
-                    let Some(event) = notification.event else {
+                    // Pull the raw payload out of the notification
+                    let Some(raw_payload) = notification.event else {
                         tracing::error!("Received channel.chat.message notification without event");
                         return (StatusCode::BAD_REQUEST, "Missing event data").into_response();
                     };
+                    // Parse into a ChatMessagePayload so we can get the appropriate subject
+                    let message_payload =
+                        serde_json::from_value::<ChatMessagePayload>(raw_payload.clone());
+                    let Ok(message_payload) = message_payload else {
+                        tracing::error!("Failed to parse channel.chat.message notification");
+                        return (StatusCode::BAD_REQUEST, "Invalid event data").into_response();
+                    };
+                    // Get the subject
+                    let subject = Event::from(message_payload).get_subject();
                     state
                         .job_queue
-                        .publish("farmhand_jobs.chat.save".to_string(), event.to_string())
+                        .publish(
+                            subject.to_string(),
+                            raw_payload.to_string(), // Pass the original payload so we can skip serialization
+                        )
                         .await
                         .map_err(|e| {
                             tracing::error!("Failed to publish chat message job: {}", e);
