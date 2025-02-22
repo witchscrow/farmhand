@@ -7,6 +7,7 @@ pub enum Event {
 }
 
 pub const EVENT_PREFIX: &str = "farmhand";
+pub const PRIMARY_STREAM: &str = "FARMHAND_EVENTS";
 
 impl Event {
     pub fn get_subject(&self) -> String {
