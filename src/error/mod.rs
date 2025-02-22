@@ -1,3 +1,3 @@
 pub mod queue;
 
-pub use queue::QueueError;
+pub use queue::{QueueError, StreamError};

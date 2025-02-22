@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use crate::{
     api::{app_state::AppState, routes::auth::oauth::twitch::TwitchCredentials},
-    workers::{events::Event, runner::chat::ChatMessagePayload},
+    workers::events::{chat::ChatMessagePayload, Event},
 };
 
 type HmacSha256 = Hmac<Sha256>;
@@ -117,7 +117,7 @@ pub async fn handle_webhook(
                     // Get the subject
                     let subject = Event::from(message_payload).get_subject();
                     state
-                        .job_queue
+                        .event_stream
                         .publish(
                             subject.to_string(),
                             raw_payload.to_string(), // Pass the original payload so we can skip serialization

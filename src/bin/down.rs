@@ -1,5 +1,8 @@
 use anyhow::Result;
-use farmhand::{db, workers};
+use farmhand::{
+    db,
+    workers::{create_nats_client, Queue, Stream},
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -27,9 +30,9 @@ async fn main() -> Result<()> {
 
     // Delete all streams
     tracing::debug!("Deleting all streams");
-    let nats_client = workers::create_nats_client().await?;
-    let jq_name = "FARMHAND_JOBS".to_string();
-    workers::Queue::delete(jq_name, nats_client).await?;
+    let nats_client = create_nats_client().await?;
+    Queue::delete(nats_client.clone()).await?;
+    Stream::delete(nats_client.clone()).await?;
 
     tracing::info!("Successfully deleted all streams");
     Ok(())
