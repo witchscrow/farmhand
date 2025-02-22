@@ -1,2 +1,2 @@
-pub mod receivers;
+pub mod callback;
 pub mod subscribers;

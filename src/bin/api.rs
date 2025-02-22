@@ -62,7 +62,7 @@ async fn main() {
         .nest(
             "/eventsub",
             Router::new()
-                .route("/", post(twitch::eventsub::receivers::handle_webhook))
+                .route("/", post(twitch::eventsub::callback::handle_webhook))
                 .with_state(state.clone()),
         )
         .nest(

@@ -8,12 +8,20 @@ name = "api"
 path = "src/bin/api.rs"
 
 [[bin]]
-name = "job_runner"
+name = "queue"
 path = "src/bin/job_runner.rs"
+
+[[bin]]
+name = "listener"
+path = "src/bin/stream_listener.rs"
 
 [[bin]]
 name = "up"
 path = "src/bin/up.rs"
+
+[[bin]]
+name = "down"
+path = "src/bin/down.rs"
 
 [dependencies]
 anyhow = "1.0.95"

@@ -26,7 +26,11 @@ dev-api:
 
 # Run the job runner in dev mode
 dev-queue:
-    cargo run --bin job_runner
+    cargo run --bin queue
+
+# Run the listener in dev mode
+dev-listener:
+    cargo run --bin listener
 
 # Database commands
 create-db:
