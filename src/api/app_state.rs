@@ -2,14 +2,16 @@ use super::config::Config;
 use crate::{
     db::connect_to_database,
     storage::s3::create_s3_client,
-    workers::{self, events::PRIMARY_STREAM},
+    workers::events::Stream,
+    workers::{create_nats_client, Queue},
 };
 use sqlx::PgPool;
 
 /// Shared state available to the API
 pub struct AppState {
     pub db: PgPool,
-    pub job_queue: workers::Queue,
+    pub job_queue: Queue,
+    pub event_stream: Stream,
     pub config: Config,
     pub s3_client: aws_sdk_s3::Client,
 }
@@ -24,17 +26,24 @@ impl AppState {
         // Create the S3 Client
         let s3_client = create_s3_client().await;
 
+        // Create a NATS client
+        let nats_client = create_nats_client().await?;
+
         // Connect to the job queue
-        let nats_client = workers::create_nats_client().await?;
-        let jq_name = PRIMARY_STREAM.to_string();
-        let job_queue = workers::Queue::connect(jq_name, nats_client)
+        let job_queue = Queue::connect(nats_client.clone())
             .await
             .expect("Failed to create worker queue");
+
+        // Connect to the event stream
+        let event_stream = Stream::connect(nats_client.clone())
+            .await
+            .expect("Failed to connect to event stream");
 
         Ok(Self {
             config,
             db,
             job_queue,
+            event_stream,
             s3_client,
         })
     }

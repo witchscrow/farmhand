@@ -3,7 +3,7 @@ use farmhand::{
     db,
     workers::{
         self,
-        events::{EVENT_PREFIX, PRIMARY_STREAM},
+        events::{EVENT_PREFIX, EVENT_STREAM, JOB_PREFIX, JOB_STREAM, MESSAGE_PREFIX},
     },
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -53,18 +53,27 @@ async fn init_project_nats() {
         .await
         .expect("Failed to connect to NATS");
 
-    // Create the job queue stream
-    let jq_desc = Some("All Farmhand events".to_string());
-    let all_events = format!("{}.>", EVENT_PREFIX);
-    let jq_subjects = vec![all_events];
-    workers::Queue::new(
-        PRIMARY_STREAM.to_string(),
-        jq_desc,
-        jq_subjects,
-        nats_client,
+    // Create the event stream
+    let all_events_subject = format!("{}.{}.>", MESSAGE_PREFIX, EVENT_PREFIX);
+    workers::Stream::new(
+        EVENT_STREAM.to_string(),
+        Some("All Farmhand events".to_string()),
+        vec![all_events_subject],
+        nats_client.clone(),
     )
     .await
     .expect("Failed to create worker queue");
+
+    // Create the job stream
+    let all_jobs_subject = format!("{}.{}.>", MESSAGE_PREFIX, JOB_PREFIX);
+    workers::Queue::new(
+        JOB_STREAM.to_string(),
+        Some("All Farmhand jobs".to_string()),
+        vec![all_jobs_subject],
+        nats_client.clone(),
+    )
+    .await
+    .expect("Failed to create job queue");
 
     tracing::info!("Successfully initialized NATS worker queue");
 }

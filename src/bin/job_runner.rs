@@ -1,10 +1,6 @@
 use anyhow::Result;
 use async_nats::jetstream::AckKind;
-use farmhand::workers::{
-    self,
-    events::{EVENT_PREFIX, PRIMARY_STREAM},
-    runner::process_message,
-};
+use farmhand::workers::{self, events::MESSAGE_PREFIX, queue::process_message};
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -19,14 +15,13 @@ async fn main() -> Result<()> {
     // Connect to the stream
     tracing::debug!("Connecting to NATS server");
     let nats_client = workers::create_nats_client().await?;
-    let jq_name = PRIMARY_STREAM.to_string();
     tracing::debug!("Connecting to queue");
-    let queue = workers::Queue::connect(jq_name, nats_client)
+    let queue = workers::Queue::connect(nats_client)
         .await
         .expect("Failed to create worker queue");
 
     // Get all jobs from the stream
-    let subject = format!("{}.jobs.>", EVENT_PREFIX); // All farmhand jobs
+    let subject = format!("{}.jobs.>", MESSAGE_PREFIX); // All farmhand jobs
 
     // TODO: Make this ID dynamic so we can run more than one runner at a time
     // Make sure not too make it too dynamic, as they are intended to be re-used
