@@ -8,7 +8,7 @@ use async_nats::{
     Client,
 };
 
-use crate::error::QueueError;
+use crate::{error::QueueError, workers::JOB_STREAM};
 
 #[allow(dead_code)]
 /// TODO: Remove dead code annotation after implementing
@@ -19,13 +19,16 @@ pub struct Queue {
 
 impl Queue {
     /// Connects to an existing queue
-    pub async fn connect(name: String, nats_client: Client) -> Result<Self, QueueError> {
+    pub async fn connect(nats_client: Client) -> Result<Self, QueueError> {
         let jetstream = Self::create_jetstream(nats_client);
         jetstream
-            .get_stream(&name)
+            .get_stream(JOB_STREAM)
             .await
             .map_err(|e| QueueError::InvalidConnection(e.to_string()))?;
-        Ok(Queue { name, jetstream })
+        Ok(Queue {
+            name: JOB_STREAM.to_string(),
+            jetstream,
+        })
     }
     /// Creates a new queue
     pub async fn new(
@@ -48,17 +51,17 @@ impl Queue {
         Ok(Queue { name, jetstream })
     }
     /// Deletes the queue
-    pub async fn delete(name: String, nats_client: Client) -> Result<(), QueueError> {
+    pub async fn delete(nats_client: Client) -> Result<(), QueueError> {
         let jetstream = Self::create_jetstream(nats_client);
 
         // Check if stream exists first
-        if jetstream.get_stream(&name).await.is_ok() {
+        if jetstream.get_stream(JOB_STREAM).await.is_ok() {
             jetstream
-                .delete_stream(&name)
+                .delete_stream(JOB_STREAM)
                 .await
                 .map_err(|e| QueueError::InvalidConnection(e.to_string()))?;
         } else {
-            tracing::warn!("Stream {} does not exist", name);
+            tracing::warn!("Stream {} does not exist", JOB_STREAM);
         }
         Ok(())
     }

@@ -1,13 +1,9 @@
-pub mod chat;
 pub mod hls_stream;
-pub mod nats;
 pub mod queue;
 
 use anyhow::Result;
 use async_nats::Message;
-use chat::ChatMessageRunner;
 use hls_stream::HlsStreamRunner;
-pub use nats::{create_nats_client, get_nats_url};
 pub use queue::Queue;
 use serde::de::DeserializeOwned;
 
@@ -39,7 +35,6 @@ pub(crate) trait Runner: Send + Sync + 'static {
 
 /// Represents the different types of runners that can be used in the application
 pub enum RunnerType {
-    SaveChat(ChatMessageRunner),
     TransformVideo(HlsStreamRunner),
 }
 
@@ -48,15 +43,13 @@ impl RunnerType {
     pub fn from_subject(subject: &str) -> Result<Self> {
         tracing::debug!("Creating runner for subject: {}", subject);
         match subject {
-            "farmhand_jobs.video.to_stream" => Ok(RunnerType::TransformVideo(HlsStreamRunner)),
-            "farmhand_jobs.chat.save" => Ok(RunnerType::SaveChat(ChatMessageRunner)),
+            "farmhand.jobs.video_to_stream" => Ok(RunnerType::TransformVideo(HlsStreamRunner)),
             _ => Err(anyhow::anyhow!("{} has no runner associated", subject)),
         }
     }
     /// Method to run the appropriate runner
     pub async fn run(&self, message: &Message) -> Result<()> {
         match self {
-            RunnerType::SaveChat(runner) => runner.run(message).await,
             RunnerType::TransformVideo(runner) => runner.run(message).await,
         }
     }

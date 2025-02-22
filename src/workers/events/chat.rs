@@ -1,7 +1,4 @@
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
-
-use super::Runner;
 
 #[derive(Deserialize, Serialize)]
 pub struct ChatMessagePayload {
@@ -83,20 +80,5 @@ impl ChatMessagePayload {
             channel_points_animation_id: None,
             cheer: None,
         }
-    }
-}
-
-/// A runner for processing chat messages
-pub struct ChatMessageRunner;
-
-impl Runner for ChatMessageRunner {
-    type Payload = ChatMessagePayload;
-
-    async fn process_job(&self, payload: Self::Payload) -> Result<()> {
-        tracing::debug!(
-            "Processing job with runner ChatMessageRunner for broadcaster: {broadcaster}",
-            broadcaster = payload.broadcaster_user_name
-        );
-        Ok(())
     }
 }
