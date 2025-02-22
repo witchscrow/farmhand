@@ -57,7 +57,7 @@ async fn init_project_nats() {
     let all_events_subject = format!("{}.{}.>", MESSAGE_PREFIX, EVENT_PREFIX);
     workers::Stream::new(
         EVENT_STREAM.to_string(),
-        Some("All Farmhand messages (events, jobs, etc)".to_string()),
+        Some("All Farmhand events".to_string()),
         vec![all_events_subject],
         nats_client.clone(),
     )

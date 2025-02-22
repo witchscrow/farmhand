@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     tracing::debug!("Connecting to NATS server");
     let nats_client = workers::create_nats_client().await?;
     // Setup the Jetstream queue
-    let queue = workers::Stream::connect(nats_client)
+    let listener = workers::Stream::connect(nats_client)
         .await
         .expect("Failed to create worker queue");
 
@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
     let runner_name = "farmhand_listener_1".to_string();
     tracing::info!("Listening for events {} on {}", subject, runner_name);
     // Create the consumer to listen for events
-    let consumer = queue.create_consumer(Some(runner_name), subject).await?;
+    let consumer = listener.create_consumer(Some(runner_name), subject).await?;
     loop {
         let mut jobs = consumer.fetch().max_messages(20).messages().await?;
         while let Some(job) = jobs.next().await {
