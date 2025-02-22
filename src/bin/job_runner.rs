@@ -21,16 +21,21 @@ async fn main() -> Result<()> {
         .await
         .expect("Failed to create worker queue");
 
-    // Create a consumer for the queue
+    // Get all jobs from the stream
     let subject = format!("{}.jobs.>", EVENT_PREFIX); // All farmhand jobs
+
+    // TODO: Make this ID dynamic so we can run more than one runner at a time
+    // Make sure not too make it too dynamic, as they are intended to be re-used
     let runner_name = "farmhand_runner_1".to_string();
     tracing::info!("Listening for jobs {} on {}", subject, runner_name);
+    // Create the consumer to listen for jobs
     let consumer = queue.create_consumer(Some(runner_name), subject).await?;
-
     // Start consuming jobs
     loop {
+        // TODO: Make this max_messages dynamic
         let mut jobs = consumer.fetch().max_messages(3).messages().await?;
-
+        // Start processing jobs
+        let mut handles = Vec::new();
         while let Some(job) = jobs.next().await {
             // Make sure the job is good to go
             let Ok(job) = job else {
@@ -38,15 +43,22 @@ async fn main() -> Result<()> {
                 continue;
             };
             // Process the message itself, ack on success, nack on failure
-            match process_message(&job.message).await {
-                Ok(_) => job.ack().await.expect("Failed to ack job"),
-                Err(err) => {
-                    tracing::error!("Failed to process job: {}", err);
-                    job.ack_with(AckKind::Nak(None))
-                        .await
-                        .expect("Failed to nack job");
+            let handle = tokio::spawn(async move {
+                match process_message(&job.message).await {
+                    Ok(_) => job.ack().await.expect("Failed to ack job"),
+                    Err(err) => {
+                        tracing::error!("Failed to process job: {}", err);
+                        job.ack_with(AckKind::Nak(None))
+                            .await
+                            .expect("Failed to nack job");
+                    }
                 }
-            }
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.await.expect("Task failed");
         }
 
         // Add a small delay to prevent tight loops when there are no jobs
