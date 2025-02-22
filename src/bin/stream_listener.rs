@@ -2,7 +2,10 @@
 //! It intentionally does not do anything else
 
 use anyhow::Result;
-use farmhand::workers::{self, events::EVENT_PREFIX};
+use farmhand::workers::{
+    self,
+    events::{EVENT_PREFIX, PRIMARY_STREAM},
+};
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -21,7 +24,7 @@ async fn main() -> Result<()> {
     // Setup the Jetstream queue
     let jq_name = std::env::args()
         .nth(1)
-        .unwrap_or_else(|| "FARMHAND_JOBS".to_string());
+        .unwrap_or_else(|| PRIMARY_STREAM.to_string());
     let queue = workers::Queue::connect(jq_name, nats_client)
         .await
         .expect("Failed to create worker queue");

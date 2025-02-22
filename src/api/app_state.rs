@@ -1,5 +1,9 @@
 use super::config::Config;
-use crate::{db::connect_to_database, storage::s3::create_s3_client, workers};
+use crate::{
+    db::connect_to_database,
+    storage::s3::create_s3_client,
+    workers::{self, events::PRIMARY_STREAM},
+};
 use sqlx::PgPool;
 
 /// Shared state available to the API
@@ -22,7 +26,7 @@ impl AppState {
 
         // Connect to the job queue
         let nats_client = workers::create_nats_client().await?;
-        let jq_name = "FARMHAND_JOBS".to_string();
+        let jq_name = PRIMARY_STREAM.to_string();
         let job_queue = workers::Queue::connect(jq_name, nats_client)
             .await
             .expect("Failed to create worker queue");
