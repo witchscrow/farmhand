@@ -82,7 +82,7 @@ pub async fn handle_webhook(
                     };
 
                     let stream_payload =
-                        match serde_json::from_value::<StreamStatusPayload>(raw_payload.clone()) {
+                        match serde_json::from_value::<StreamStatusPayload>(raw_payload) {
                             Ok(payload) => payload,
                             Err(err) => {
                                 tracing::error!(
@@ -111,19 +111,31 @@ pub async fn handle_webhook(
                             .into_response();
                     };
                     // Save the stream to the database
-                    if let Err(create_stream_err) =
-                        Stream::create(user_account.user_id, start_time, &state.db).await
+                    let stream = match Stream::create(user_account.user_id, start_time, &state.db)
+                        .await
                     {
-                        tracing::error!("Failed to create stream: {}", create_stream_err);
-                        return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create stream")
-                            .into_response();
-                    }
+                        Ok(stream) => stream,
+                        Err(err) => {
+                            tracing::error!("Failed to create stream: {}", err);
+                            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create stream")
+                                .into_response();
+                        }
+                    };
 
                     // Lastly, publish the stream status event
-                    let subject = Event::from(stream_payload).get_subject();
+                    let event = Event::from(stream_payload).set_stream_db_id(stream.id);
+                    let subject = event.get_subject();
+                    let Ok(payload) = serde_json::to_string(&event) else {
+                        tracing::error!("Failed to serialize event payload");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "Failed to serialize event payload",
+                        )
+                            .into_response();
+                    };
                     state
                         .event_stream
-                        .publish(subject.to_string(), raw_payload.to_string()) // Pass the original payload so we can skip serialization
+                        .publish(subject, payload)
                         .await
                         .map_err(|e| {
                             tracing::error!("Failed to publish stream status event: {}", e);
@@ -138,7 +150,7 @@ pub async fn handle_webhook(
                     };
 
                     let stream_payload =
-                        match serde_json::from_value::<StreamStatusPayload>(raw_payload.clone()) {
+                        match serde_json::from_value::<StreamStatusPayload>(raw_payload) {
                             Ok(payload) => payload,
                             Err(err) => {
                                 tracing::error!(
@@ -160,6 +172,7 @@ pub async fn handle_webhook(
                         )
                             .into_response();
                     };
+                    // Get the last active stream for the user
                     let Ok(last_active_stream) =
                         Stream::find_most_recent_active_by_user_id(user_account.user_id, &state.db)
                             .await
@@ -168,30 +181,36 @@ pub async fn handle_webhook(
                         return (StatusCode::BAD_REQUEST, "Failed to find last active stream")
                             .into_response();
                     };
-                    match last_active_stream {
-                        Some(mut stream) => {
-                            let end_time = Utc::now();
-                            if let Err(e) = stream.end_stream(end_time, &state.db).await {
-                                tracing::error!("Failed to end stream: {}", e);
-                                return (StatusCode::BAD_REQUEST, "Failed to end stream")
-                                    .into_response();
-                            }
-                        }
-                        None => {
-                            tracing::error!(
-                                "Failed to find last active stream for user: {}",
-                                user_account.user_id
-                            );
-                            return (StatusCode::BAD_REQUEST, "Failed to find last active stream")
-                                .into_response();
-                        }
-                    }
+                    // If there is not an active stream, something went wrong
+                    let Some(mut stream) = last_active_stream else {
+                        tracing::error!(
+                            "Failed to find last active stream for user: {}",
+                            user_account.user_id
+                        );
+                        return (StatusCode::BAD_REQUEST, "Failed to find last active stream")
+                            .into_response();
+                    };
+                    // Update the end time of the stream
+                    let end_time = Utc::now();
+                    let Ok(stream) = stream.end_stream(end_time, &state.db).await else {
+                        tracing::error!("Failed to end stream, could not update database");
+                        return (StatusCode::BAD_REQUEST, "Failed to end stream").into_response();
+                    };
 
                     // Lastly, publish the stream status event
-                    let subject = Event::from(stream_payload).get_subject();
+                    let event = Event::from(stream_payload).set_stream_db_id(stream.id);
+                    let subject = event.get_subject();
+                    let Ok(payload) = serde_json::to_string(&event) else {
+                        tracing::error!("Failed to serialize stream status event");
+                        return (
+                            StatusCode::INTERNAL_SERVER_ERROR,
+                            "Failed to serialize stream status event",
+                        )
+                            .into_response();
+                    };
                     state
                         .event_stream
-                        .publish(subject.to_string(), raw_payload.to_string()) // Pass the original payload so we can skip serialization
+                        .publish(subject, payload)
                         .await
                         .map_err(|e| {
                             tracing::error!("Failed to publish stream status event: {}", e);
