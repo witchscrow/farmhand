@@ -101,7 +101,7 @@ pub async fn handle_webhook(
                                 .into_response();
                         };
                         // Parse the start time from the payload
-                        let Some(start_time) = stream_payload.event.started_at else {
+                        let Some(start_time) = stream_payload.started_at() else {
                             tracing::error!("Failed to find stream start time");
                             return (StatusCode::BAD_REQUEST, "Failed to find stream start time")
                                 .into_response();
