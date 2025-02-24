@@ -110,13 +110,13 @@ pub async fn handle_webhook(
                             .into_response();
                     };
                     // Save the stream to the database
-                    let Ok(_user_stream) =
+                    if let Err(create_stream_err) =
                         Stream::create(user_account.user_id, start_time, &state.db).await
-                    else {
-                        tracing::error!("Failed to create stream");
+                    {
+                        tracing::error!("Failed to create stream: {}", create_stream_err);
                         return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create stream")
                             .into_response();
-                    };
+                    }
 
                     // Lastly, publish the stream status event
                     let subject = Event::from(stream_payload).get_subject();
