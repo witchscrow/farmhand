@@ -81,11 +81,17 @@ pub async fn handle_webhook(
                     };
 
                     let stream_payload =
-                        serde_json::from_value::<StreamStatusPayload>(raw_payload.clone());
-                    let Ok(stream_payload) = stream_payload else {
-                        tracing::error!("Failed to parse stream status notification");
-                        return (StatusCode::BAD_REQUEST, "Invalid event data").into_response();
-                    };
+                        match serde_json::from_value::<StreamStatusPayload>(raw_payload.clone()) {
+                            Ok(payload) => payload,
+                            Err(err) => {
+                                tracing::error!(
+                                    "Failed to parse stream status notification: {}",
+                                    err
+                                );
+                                return (StatusCode::BAD_REQUEST, "Invalid event data")
+                                    .into_response();
+                            }
+                        };
 
                     // If the stream is online, then we also want to start a new stream in the database for that user
                     if stream_payload.is_online() {
