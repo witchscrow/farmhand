@@ -8,3 +8,5 @@ pub mod queue;
 pub mod storage;
 pub mod vendors;
 pub mod vod;
+
+pub use vendors::twitch;

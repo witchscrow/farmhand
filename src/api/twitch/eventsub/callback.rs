@@ -4,46 +4,18 @@ use axum::{
     response::IntoResponse,
 };
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
-use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::sync::Arc;
 
 use crate::{
     api::{app_state::AppState, routes::auth::oauth::twitch::TwitchCredentials},
     event::Event,
-    vendors::ChatMessagePayload,
+    twitch::{subscription::Notification, ChatMessagePayload, StreamStatusPayload},
 };
 
 type HmacSha256 = Hmac<Sha256>;
 const HMAC_PREFIX: &str = "sha256=";
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Subscription {
-    id: String,
-    status: String,
-    #[serde(rename = "type")]
-    event_type: String,
-    version: String,
-    cost: i32,
-    condition: serde_json::Value,
-    transport: Transport,
-    created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Transport {
-    method: String,
-    callback: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Notification {
-    subscription: Subscription,
-    event: Option<serde_json::Value>,
-    challenge: Option<String>,
-}
 
 pub async fn handle_webhook(
     State(state): State<Arc<AppState>>,
@@ -101,16 +73,29 @@ pub async fn handle_webhook(
             tracing::debug!("Event type: {}", notification.subscription.event_type);
             let notification_type = notification.subscription.event_type;
             match notification_type.as_str() {
-                "stream.online" => {
-                    return (StatusCode::NOT_IMPLEMENTED, "Stream online not implemented")
-                        .into_response()
-                }
-                "stream.offline" => {
-                    return (
-                        StatusCode::NOT_IMPLEMENTED,
-                        "Stream offline not implemented",
-                    )
-                        .into_response()
+                "stream.online" | "stream.offline" => {
+                    let Some(raw_payload) = notification.event else {
+                        tracing::error!("Received stream status notification without event");
+                        return (StatusCode::BAD_REQUEST, "Missing event data").into_response();
+                    };
+
+                    let stream_payload =
+                        serde_json::from_value::<StreamStatusPayload>(raw_payload.clone());
+                    let Ok(stream_payload) = stream_payload else {
+                        tracing::error!("Failed to parse stream status notification");
+                        return (StatusCode::BAD_REQUEST, "Invalid event data").into_response();
+                    };
+
+                    let subject = Event::from(stream_payload).get_subject();
+                    state
+                        .event_stream
+                        .publish(subject.to_string(), raw_payload.to_string()) // Pass the original payload so we can skip serialization
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("Failed to publish stream status event: {}", e);
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })
+                        .expect("Failed to publish stream status event");
                 }
                 "channel.follow" => {
                     return (

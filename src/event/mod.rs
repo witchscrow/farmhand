@@ -1,7 +1,7 @@
 pub mod stream;
 pub use stream::Stream;
 
-use crate::vendors::ChatMessagePayload;
+use crate::twitch::{ChatMessagePayload, StreamStatusPayload};
 pub use stream::EVENT_STREAM;
 
 pub const MESSAGE_PREFIX: &str = "farmhand";
@@ -13,6 +13,7 @@ pub const JOB_STREAM: &str = "FARMHAND_JOBS";
 /// Primarily used to get the appropriate subject name for an event
 pub enum Event {
     ChatMessage(ChatMessagePayload),
+    StreamStatus(StreamStatusPayload),
 }
 
 impl Event {
@@ -23,6 +24,18 @@ impl Event {
                 "{}.{}.twitch.events.{}.chat_message",
                 MESSAGE_PREFIX, EVENT_PREFIX, payload.broadcaster_user_name
             ),
+            // farmhand.events.twitch.{broadcaster_name}.stream_status
+            Event::StreamStatus(payload) => {
+                let status = if payload.is_online() {
+                    "online"
+                } else {
+                    "offline"
+                };
+                format!(
+                    "{}.{}.twitch.events.{}.stream_{}",
+                    MESSAGE_PREFIX, EVENT_PREFIX, payload.event.broadcaster_user_name, status
+                )
+            }
         }
     }
 }
@@ -30,5 +43,11 @@ impl Event {
 impl From<ChatMessagePayload> for Event {
     fn from(payload: ChatMessagePayload) -> Self {
         Event::ChatMessage(payload)
+    }
+}
+
+impl From<StreamStatusPayload> for Event {
+    fn from(payload: StreamStatusPayload) -> Self {
+        Event::StreamStatus(payload)
     }
 }
