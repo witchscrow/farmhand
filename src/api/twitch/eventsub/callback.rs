@@ -100,6 +100,31 @@ pub async fn handle_webhook(
             tracing::debug!("Event type: {}", notification.subscription.event_type);
             let notification_type = notification.subscription.event_type;
             match notification_type.as_str() {
+                "stream.online" => {
+                    return (StatusCode::NOT_IMPLEMENTED, "Stream online not implemented")
+                        .into_response()
+                }
+                "stream.offline" => {
+                    return (
+                        StatusCode::NOT_IMPLEMENTED,
+                        "Stream offline not implemented",
+                    )
+                        .into_response()
+                }
+                "channel.follow" => {
+                    return (
+                        StatusCode::NOT_IMPLEMENTED,
+                        "Channel follow not implemented",
+                    )
+                        .into_response()
+                }
+                "channel.subscribe" => {
+                    return (
+                        StatusCode::NOT_IMPLEMENTED,
+                        "Channel subscription not implemented",
+                    )
+                        .into_response()
+                }
                 "channel.chat.message" => {
                     tracing::debug!("Channel chat message received");
                     // Pull the raw payload out of the notification
