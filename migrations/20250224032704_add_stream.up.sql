@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS streams (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid (),
+    user_id UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     start_time TIMESTAMP
     WITH
         TIME ZONE NOT NULL,
@@ -18,6 +19,8 @@ CREATE TABLE IF NOT EXISTS streams (
 
 -- Add an index on start_time for efficient querying
 CREATE INDEX idx_streams_start_time ON streams (start_time);
+
+CREATE INDEX idx_streams_user_id ON streams (user_id);
 
 -- Create trigger using existing function
 CREATE TRIGGER update_streams_updated_at BEFORE

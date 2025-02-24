@@ -5,6 +5,7 @@ use sqlx::{types::Uuid, PgPool};
 #[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
 pub struct Stream {
     pub id: Uuid,
+    pub user_id: Uuid,
     pub start_time: DateTime<Utc>,
     pub end_time: Option<DateTime<Utc>>,
     pub event_log_url: Option<String>,
@@ -15,9 +16,10 @@ pub struct Stream {
 
 impl Stream {
     /// Creates a new stream instance (not persisted)
-    pub fn new(start_time: DateTime<Utc>) -> Self {
+    pub fn new(user_id: Uuid, start_time: DateTime<Utc>) -> Self {
         Stream {
             id: Uuid::new_v4(),
+            user_id,
             start_time,
             end_time: None,
             event_log_url: None,
@@ -28,8 +30,8 @@ impl Stream {
     }
 
     /// Creates a new stream in the database
-    pub async fn create(start_time: DateTime<Utc>, pool: &PgPool) -> Result<Stream, sqlx::Error> {
-        let stream = Stream::new(start_time);
+    pub async fn create(user_id: Uuid, start_time: DateTime<Utc>, pool: &PgPool) -> Result<Stream, sqlx::Error> {
+        let stream = Stream::new(user_id, start_time);
 
         sqlx::query_as::<_, Stream>(
             "INSERT INTO streams (
@@ -59,6 +61,27 @@ impl Stream {
         sqlx::query_as::<_, Stream>("SELECT * FROM streams ORDER BY start_time DESC")
             .fetch_all(pool)
             .await
+    }
+    /// Finds all streams for a specific user
+    pub async fn find_by_user_id(user_id: Uuid, pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
+        sqlx::query_as::<_, Stream>(
+            "SELECT * FROM streams WHERE user_id = $1 ORDER BY start_time DESC"
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
+    }
+
+    /// Finds active streams for a specific user
+    pub async fn find_active_by_user_id(user_id: Uuid, pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
+        sqlx::query_as::<_, Stream>(
+            "SELECT * FROM streams
+            WHERE user_id = $1 AND end_time IS NULL
+            ORDER BY start_time DESC"
+        )
+        .bind(user_id)
+        .fetch_all(pool)
+        .await
     }
 
     /// Finds all active streams (no end time)
