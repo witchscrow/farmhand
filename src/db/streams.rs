@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{types::Uuid, PgPool};
 
-#[derive(sqlx::FromRow, Debug, Serialize, Deserialize)]
+#[derive(sqlx::FromRow, Debug, Serialize, Deserialize, Clone)]
 pub struct Stream {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -34,7 +34,7 @@ impl Stream {
         user_id: Uuid,
         start_time: DateTime<Utc>,
         pool: &PgPool,
-    ) -> Result<Stream, sqlx::Error> {
+    ) -> Result<Self, sqlx::Error> {
         let stream = Stream::new(user_id, start_time);
 
         sqlx::query_as::<_, Stream>(
@@ -54,22 +54,22 @@ impl Stream {
     }
 
     /// Finds a stream by ID
-    pub async fn find_by_id(id: Uuid, pool: &PgPool) -> Result<Stream, sqlx::Error> {
-        sqlx::query_as::<_, Stream>("SELECT * FROM streams WHERE id = $1")
+    pub async fn find_by_id(id: Uuid, pool: &PgPool) -> Result<Self, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM streams WHERE id = $1")
             .bind(id)
             .fetch_one(pool)
             .await
     }
 
     /// Finds all streams
-    pub async fn all(pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
-        sqlx::query_as::<_, Stream>("SELECT * FROM streams ORDER BY start_time DESC")
+    pub async fn all(pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>("SELECT * FROM streams ORDER BY start_time DESC")
             .fetch_all(pool)
             .await
     }
     /// Finds all streams for a specific user
-    pub async fn find_by_user_id(user_id: Uuid, pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
-        sqlx::query_as::<_, Stream>(
+    pub async fn find_by_user_id(user_id: Uuid, pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
             "SELECT * FROM streams WHERE user_id = $1 ORDER BY start_time DESC",
         )
         .bind(user_id)
@@ -81,8 +81,8 @@ impl Stream {
     pub async fn find_active_by_user_id(
         user_id: Uuid,
         pool: &PgPool,
-    ) -> Result<Vec<Stream>, sqlx::Error> {
-        sqlx::query_as::<_, Stream>(
+    ) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
             "SELECT * FROM streams
             WHERE user_id = $1 AND end_time IS NULL
             ORDER BY start_time DESC",
@@ -96,8 +96,8 @@ impl Stream {
     pub async fn find_most_recent_active_by_user_id(
         user_id: Uuid,
         pool: &PgPool,
-    ) -> Result<Option<Stream>, sqlx::Error> {
-        sqlx::query_as::<_, Stream>(
+    ) -> Result<Option<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
             "SELECT * FROM streams
             WHERE user_id = $1 AND end_time IS NULL
             ORDER BY start_time DESC
@@ -109,8 +109,8 @@ impl Stream {
     }
 
     /// Finds all active streams (no end time)
-    pub async fn find_active(pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
-        sqlx::query_as::<_, Stream>(
+    pub async fn find_active(pool: &PgPool) -> Result<Vec<Self>, sqlx::Error> {
+        sqlx::query_as::<_, Self>(
             "SELECT * FROM streams WHERE end_time IS NULL ORDER BY start_time DESC",
         )
         .fetch_all(pool)
@@ -122,7 +122,7 @@ impl Stream {
         &mut self,
         end_time: DateTime<Utc>,
         pool: &PgPool,
-    ) -> Result<(), sqlx::Error> {
+    ) -> Result<Self, sqlx::Error> {
         sqlx::query(
             "UPDATE streams
             SET end_time = $1,
@@ -136,7 +136,7 @@ impl Stream {
 
         self.end_time = Some(end_time);
         self.updated_at = Utc::now();
-        Ok(())
+        Ok(self.clone())
     }
 
     /// Updates the stream's event log URL
