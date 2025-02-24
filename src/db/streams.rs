@@ -92,6 +92,22 @@ impl Stream {
         .await
     }
 
+    /// Gets the most recent active stream for a user
+    pub async fn find_most_recent_active_by_user_id(
+        user_id: Uuid,
+        pool: &PgPool,
+    ) -> Result<Option<Stream>, sqlx::Error> {
+        sqlx::query_as::<_, Stream>(
+            "SELECT * FROM streams
+            WHERE user_id = $1 AND end_time IS NULL
+            ORDER BY start_time DESC
+            LIMIT 1",
+        )
+        .bind(user_id)
+        .fetch_optional(pool)
+        .await
+    }
+
     /// Finds all active streams (no end time)
     pub async fn find_active(pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
         sqlx::query_as::<_, Stream>(

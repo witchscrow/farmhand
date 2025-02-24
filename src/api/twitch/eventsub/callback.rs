@@ -4,6 +4,7 @@ use axum::{
     response::IntoResponse,
 };
 use bytes::Bytes;
+use chrono::Utc;
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
 use std::sync::Arc;
@@ -150,8 +151,7 @@ pub async fn handle_webhook(
                         };
 
                     // Start by getting the user account by the payload
-                    let Ok(_user_account) =
-                        stream_payload.find_broadcaster_account(&state.db).await
+                    let Ok(user_account) = stream_payload.find_broadcaster_account(&state.db).await
                     else {
                         tracing::error!("Failed to find broadcaster account");
                         return (
@@ -160,7 +160,32 @@ pub async fn handle_webhook(
                         )
                             .into_response();
                     };
-                    // TODO: Find the last active stream for the user and update it with an end time of now
+                    let Ok(last_active_stream) =
+                        Stream::find_most_recent_active_by_user_id(user_account.id, &state.db)
+                            .await
+                    else {
+                        tracing::error!("Failed to find last active stream");
+                        return (StatusCode::BAD_REQUEST, "Failed to find last active stream")
+                            .into_response();
+                    };
+                    match last_active_stream {
+                        Some(mut stream) => {
+                            let end_time = Utc::now();
+                            if let Err(e) = stream.end_stream(end_time, &state.db).await {
+                                tracing::error!("Failed to end stream: {}", e);
+                                return (StatusCode::BAD_REQUEST, "Failed to end stream")
+                                    .into_response();
+                            }
+                        }
+                        None => {
+                            tracing::error!(
+                                "Failed to find last active stream for user: {}",
+                                user_account.user_id
+                            );
+                            return (StatusCode::BAD_REQUEST, "Failed to find last active stream")
+                                .into_response();
+                        }
+                    }
 
                     // Lastly, publish the stream status event
                     let subject = Event::from(stream_payload).get_subject();
