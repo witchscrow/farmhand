@@ -18,7 +18,7 @@ pub enum Event {
 
 impl Event {
     pub fn get_subject(&self) -> String {
-        match self {
+        let raw_subject = match self {
             // farmhand.events.twitch.{broadcaster_name}.chat_message
             Event::ChatMessage(payload) => format!(
                 "{}.{}.twitch.events.{}.chat_message",
@@ -36,7 +36,9 @@ impl Event {
                     MESSAGE_PREFIX, EVENT_PREFIX, payload.broadcaster_user_name, status
                 )
             }
-        }
+        };
+        // Make sure the subject is lowercase
+        raw_subject.to_lowercase()
     }
 }
 
