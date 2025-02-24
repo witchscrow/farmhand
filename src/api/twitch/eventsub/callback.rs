@@ -88,30 +88,33 @@ pub async fn handle_webhook(
                     };
 
                     // If the stream is online, then we also want to start a new stream in the database for that user
-                    // Start by getting the user account by the payload
-                    let Ok(user_account) = stream_payload.find_broadcaster_account(&state.db).await
-                    else {
-                        tracing::error!("Failed to find broadcaster account");
-                        return (
-                            StatusCode::BAD_REQUEST,
-                            "Failed to find broadcaster account",
-                        )
-                            .into_response();
-                    };
-                    // Parse the start time from the payload
-                    let Some(start_time) = stream_payload.event.started_at else {
-                        tracing::error!("Failed to find stream start time");
-                        return (StatusCode::BAD_REQUEST, "Failed to find stream start time")
-                            .into_response();
-                    };
-                    // Save the stream to the database
-                    let Ok(_user_stream) =
-                        Stream::create(user_account.user_id, start_time, &state.db).await
-                    else {
-                        tracing::error!("Failed to create stream");
-                        return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create stream")
-                            .into_response();
-                    };
+                    if stream_payload.is_online() {
+                        // Start by getting the user account by the payload
+                        let Ok(user_account) =
+                            stream_payload.find_broadcaster_account(&state.db).await
+                        else {
+                            tracing::error!("Failed to find broadcaster account");
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                "Failed to find broadcaster account",
+                            )
+                                .into_response();
+                        };
+                        // Parse the start time from the payload
+                        let Some(start_time) = stream_payload.event.started_at else {
+                            tracing::error!("Failed to find stream start time");
+                            return (StatusCode::BAD_REQUEST, "Failed to find stream start time")
+                                .into_response();
+                        };
+                        // Save the stream to the database
+                        let Ok(_user_stream) =
+                            Stream::create(user_account.user_id, start_time, &state.db).await
+                        else {
+                            tracing::error!("Failed to create stream");
+                            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create stream")
+                                .into_response();
+                        };
+                    }
 
                     // Lastly, publish the stream status event
                     let subject = Event::from(stream_payload).get_subject();
