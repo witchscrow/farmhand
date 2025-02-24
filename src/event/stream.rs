@@ -11,8 +11,6 @@ use crate::error::StreamError;
 
 pub const EVENT_STREAM: &str = "FARMHAND_EVENTS";
 
-#[allow(dead_code)]
-/// TODO: Remove dead code annotation after implementing
 pub struct Stream {
     name: String,
     jetstream: Context,
