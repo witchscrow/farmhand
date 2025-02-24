@@ -1,11 +1,9 @@
 use anyhow::Result;
 use farmhand::{
     db,
+    event::{Stream, EVENT_PREFIX, EVENT_STREAM, JOB_PREFIX, JOB_STREAM, MESSAGE_PREFIX},
     nats::create_nats_client,
-    workers::{
-        events::{EVENT_PREFIX, EVENT_STREAM, JOB_PREFIX, JOB_STREAM, MESSAGE_PREFIX},
-        Queue, Stream,
-    },
+    workers::Queue,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

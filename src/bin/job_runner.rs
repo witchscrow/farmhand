@@ -1,8 +1,9 @@
 use anyhow::Result;
 use async_nats::jetstream::AckKind;
 use farmhand::{
+    event::MESSAGE_PREFIX,
     nats::create_nats_client,
-    workers::{self, events::MESSAGE_PREFIX, queue::process_message},
+    workers::{self, queue::process_message},
 };
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

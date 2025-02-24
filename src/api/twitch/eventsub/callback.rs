@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use crate::{
     api::{app_state::AppState, routes::auth::oauth::twitch::TwitchCredentials},
+    event::Event,
     vendors::ChatMessagePayload,
-    workers::events::Event,
 };
 
 type HmacSha256 = Hmac<Sha256>;

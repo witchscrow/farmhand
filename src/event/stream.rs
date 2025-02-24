@@ -7,7 +7,9 @@ use async_nats::{
     Client,
 };
 
-use crate::{error::StreamError, workers::EVENT_STREAM};
+use crate::error::StreamError;
+
+pub const EVENT_STREAM: &str = "FARMHAND_EVENTS";
 
 #[allow(dead_code)]
 /// TODO: Remove dead code annotation after implementing

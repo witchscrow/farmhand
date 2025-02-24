@@ -3,8 +3,8 @@
 
 use anyhow::Result;
 use farmhand::{
+    event::{Stream, MESSAGE_PREFIX},
     nats::create_nats_client,
-    workers::{events::MESSAGE_PREFIX, Stream},
 };
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};

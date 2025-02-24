@@ -8,7 +8,7 @@ use async_nats::{
     Client,
 };
 
-use crate::{error::QueueError, workers::JOB_STREAM};
+use crate::{error::QueueError, event::JOB_STREAM};
 
 #[allow(dead_code)]
 /// TODO: Remove dead code annotation after implementing
