@@ -30,16 +30,21 @@ impl Stream {
     }
 
     /// Creates a new stream in the database
-    pub async fn create(user_id: Uuid, start_time: DateTime<Utc>, pool: &PgPool) -> Result<Stream, sqlx::Error> {
+    pub async fn create(
+        user_id: Uuid,
+        start_time: DateTime<Utc>,
+        pool: &PgPool,
+    ) -> Result<Stream, sqlx::Error> {
         let stream = Stream::new(user_id, start_time);
 
         sqlx::query_as::<_, Stream>(
             "INSERT INTO streams (
-                id, start_time, end_time, event_log_url, video_url
-            ) VALUES ($1, $2, $3, $4, $5)
+                id, user_id, start_time, end_time, event_log_url, video_url
+            ) VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *",
         )
         .bind(stream.id)
+        .bind(stream.user_id)
         .bind(stream.start_time)
         .bind(stream.end_time)
         .bind(&stream.event_log_url)
@@ -65,7 +70,7 @@ impl Stream {
     /// Finds all streams for a specific user
     pub async fn find_by_user_id(user_id: Uuid, pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
         sqlx::query_as::<_, Stream>(
-            "SELECT * FROM streams WHERE user_id = $1 ORDER BY start_time DESC"
+            "SELECT * FROM streams WHERE user_id = $1 ORDER BY start_time DESC",
         )
         .bind(user_id)
         .fetch_all(pool)
@@ -73,11 +78,14 @@ impl Stream {
     }
 
     /// Finds active streams for a specific user
-    pub async fn find_active_by_user_id(user_id: Uuid, pool: &PgPool) -> Result<Vec<Stream>, sqlx::Error> {
+    pub async fn find_active_by_user_id(
+        user_id: Uuid,
+        pool: &PgPool,
+    ) -> Result<Vec<Stream>, sqlx::Error> {
         sqlx::query_as::<_, Stream>(
             "SELECT * FROM streams
             WHERE user_id = $1 AND end_time IS NULL
-            ORDER BY start_time DESC"
+            ORDER BY start_time DESC",
         )
         .bind(user_id)
         .fetch_all(pool)
