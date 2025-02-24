@@ -2,7 +2,10 @@
 //! It intentionally does not do anything else
 
 use anyhow::Result;
-use farmhand::workers::{self, events::MESSAGE_PREFIX};
+use farmhand::{
+    event::{Stream, MESSAGE_PREFIX},
+    nats::create_nats_client,
+};
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -17,9 +20,9 @@ async fn main() -> Result<()> {
         .init();
     // Create the NATS client
     tracing::debug!("Connecting to NATS server");
-    let nats_client = workers::create_nats_client().await?;
+    let nats_client = create_nats_client().await?;
     // Setup the Jetstream queue
-    let listener = workers::Stream::connect(nats_client)
+    let listener = Stream::connect(nats_client)
         .await
         .expect("Failed to create worker queue");
 

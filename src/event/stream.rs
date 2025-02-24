@@ -2,31 +2,32 @@ use async_nats::{
     jetstream::{
         self,
         consumer::{pull::Config, Consumer},
-        stream::RetentionPolicy,
         Context,
     },
     Client,
 };
 
-use crate::{error::QueueError, workers::JOB_STREAM};
+use crate::error::StreamError;
+
+pub const EVENT_STREAM: &str = "FARMHAND_EVENTS";
 
 #[allow(dead_code)]
 /// TODO: Remove dead code annotation after implementing
-pub struct Queue {
+pub struct Stream {
     name: String,
     jetstream: Context,
 }
 
-impl Queue {
+impl Stream {
     /// Connects to an existing queue
-    pub async fn connect(nats_client: Client) -> Result<Self, QueueError> {
+    pub async fn connect(nats_client: Client) -> Result<Self, StreamError> {
         let jetstream = Self::create_jetstream(nats_client);
         jetstream
-            .get_stream(JOB_STREAM)
+            .get_stream(EVENT_STREAM)
             .await
-            .map_err(|e| QueueError::InvalidConnection(e.to_string()))?;
-        Ok(Queue {
-            name: JOB_STREAM.to_string(),
+            .map_err(|e| StreamError::InvalidConnection(e.to_string()))?;
+        Ok(Stream {
+            name: EVENT_STREAM.to_string(),
             jetstream,
         })
     }
@@ -36,32 +37,32 @@ impl Queue {
         description: Option<String>,
         subjects: Vec<String>,
         nats_client: Client,
-    ) -> Result<Self, QueueError> {
+    ) -> Result<Self, StreamError> {
         let jetstream = Self::create_jetstream(nats_client);
         jetstream
             .create_stream(jetstream::stream::Config {
                 name: name.clone(),
                 subjects,
                 description,
-                retention: RetentionPolicy::WorkQueue,
+                max_bytes: 1024 * 1024 * 1024, // 1GB
                 ..Default::default()
             })
             .await
-            .map_err(|e| QueueError::InvalidConnection(e.to_string()))?;
-        Ok(Queue { name, jetstream })
+            .map_err(|e| StreamError::InvalidConnection(e.to_string()))?;
+        Ok(Stream { name, jetstream })
     }
-    /// Deletes the queue
-    pub async fn delete(nats_client: Client) -> Result<(), QueueError> {
+    /// Deletes the stream
+    pub async fn delete(nats_client: Client) -> Result<(), StreamError> {
         let jetstream = Self::create_jetstream(nats_client);
 
         // Check if stream exists first
-        if jetstream.get_stream(JOB_STREAM).await.is_ok() {
+        if jetstream.get_stream(EVENT_STREAM).await.is_ok() {
             jetstream
-                .delete_stream(JOB_STREAM)
+                .delete_stream(EVENT_STREAM)
                 .await
-                .map_err(|e| QueueError::InvalidConnection(e.to_string()))?;
+                .map_err(|e| StreamError::InvalidConnection(e.to_string()))?;
         } else {
-            tracing::warn!("Stream {} does not exist", JOB_STREAM);
+            tracing::warn!("Stream {} does not exist", EVENT_STREAM);
         }
         Ok(())
     }
@@ -74,7 +75,7 @@ impl Queue {
         &self,
         name: Option<String>,
         filter: String,
-    ) -> Result<Consumer<Config>, QueueError> {
+    ) -> Result<Consumer<Config>, StreamError> {
         let config = jetstream::consumer::pull::Config {
             durable_name: name,
             filter_subject: filter,
@@ -84,15 +85,15 @@ impl Queue {
         self.jetstream
             .create_consumer_on_stream(config, self.name.to_string())
             .await
-            .map_err(|e| QueueError::InvalidConnection(e.to_string()))
+            .map_err(|e| StreamError::InvalidConnection(e.to_string()))
     }
     /// Publishes a message to the queue
-    pub async fn publish(&self, subject: String, message: String) -> Result<(), QueueError> {
+    pub async fn publish(&self, subject: String, message: String) -> Result<(), StreamError> {
         tracing::debug!("Publishing message to subject {}", subject);
         self.jetstream
             .publish(subject, message.into())
             .await
-            .map_err(|e| QueueError::InvalidConnection(e.to_string()))?;
+            .map_err(|e| StreamError::InvalidConnection(e.to_string()))?;
 
         Ok(())
     }

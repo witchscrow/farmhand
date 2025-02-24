@@ -4,45 +4,19 @@ use axum::{
     response::IntoResponse,
 };
 use bytes::Bytes;
-use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
-use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::sync::Arc;
 
 use crate::{
     api::{app_state::AppState, routes::auth::oauth::twitch::TwitchCredentials},
-    workers::events::{chat::ChatMessagePayload, Event},
+    db::streams::Stream,
+    event::Event,
+    twitch::{subscription::Notification, ChatMessagePayload, StreamStatusPayload},
 };
 
 type HmacSha256 = Hmac<Sha256>;
 const HMAC_PREFIX: &str = "sha256=";
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Subscription {
-    id: String,
-    status: String,
-    #[serde(rename = "type")]
-    event_type: String,
-    version: String,
-    cost: i32,
-    condition: serde_json::Value,
-    transport: Transport,
-    created_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Transport {
-    method: String,
-    callback: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Notification {
-    subscription: Subscription,
-    event: Option<serde_json::Value>,
-    challenge: Option<String>,
-}
 
 pub async fn handle_webhook(
     State(state): State<Arc<AppState>>,
@@ -100,6 +74,74 @@ pub async fn handle_webhook(
             tracing::debug!("Event type: {}", notification.subscription.event_type);
             let notification_type = notification.subscription.event_type;
             match notification_type.as_str() {
+                "stream.online" | "stream.offline" => {
+                    let Some(raw_payload) = notification.event else {
+                        tracing::error!("Received stream status notification without event");
+                        return (StatusCode::BAD_REQUEST, "Missing event data").into_response();
+                    };
+
+                    let stream_payload =
+                        serde_json::from_value::<StreamStatusPayload>(raw_payload.clone());
+                    let Ok(stream_payload) = stream_payload else {
+                        tracing::error!("Failed to parse stream status notification");
+                        return (StatusCode::BAD_REQUEST, "Invalid event data").into_response();
+                    };
+
+                    // If the stream is online, then we also want to start a new stream in the database for that user
+                    if stream_payload.is_online() {
+                        // Start by getting the user account by the payload
+                        let Ok(user_account) =
+                            stream_payload.find_broadcaster_account(&state.db).await
+                        else {
+                            tracing::error!("Failed to find broadcaster account");
+                            return (
+                                StatusCode::BAD_REQUEST,
+                                "Failed to find broadcaster account",
+                            )
+                                .into_response();
+                        };
+                        // Parse the start time from the payload
+                        let Some(start_time) = stream_payload.event.started_at else {
+                            tracing::error!("Failed to find stream start time");
+                            return (StatusCode::BAD_REQUEST, "Failed to find stream start time")
+                                .into_response();
+                        };
+                        // Save the stream to the database
+                        let Ok(_user_stream) =
+                            Stream::create(user_account.user_id, start_time, &state.db).await
+                        else {
+                            tracing::error!("Failed to create stream");
+                            return (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create stream")
+                                .into_response();
+                        };
+                    }
+
+                    // Lastly, publish the stream status event
+                    let subject = Event::from(stream_payload).get_subject();
+                    state
+                        .event_stream
+                        .publish(subject.to_string(), raw_payload.to_string()) // Pass the original payload so we can skip serialization
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("Failed to publish stream status event: {}", e);
+                            StatusCode::INTERNAL_SERVER_ERROR
+                        })
+                        .expect("Failed to publish stream status event");
+                }
+                "channel.follow" => {
+                    return (
+                        StatusCode::NOT_IMPLEMENTED,
+                        "Channel follow not implemented",
+                    )
+                        .into_response()
+                }
+                "channel.subscribe" => {
+                    return (
+                        StatusCode::NOT_IMPLEMENTED,
+                        "Channel subscription not implemented",
+                    )
+                        .into_response()
+                }
                 "channel.chat.message" => {
                     tracing::debug!("Channel chat message received");
                     // Pull the raw payload out of the notification

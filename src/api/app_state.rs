@@ -1,9 +1,7 @@
 use super::config::Config;
 use crate::{
-    db::connect_to_database,
+    db::connect_to_database, event::Stream, nats::create_nats_client, queue::Queue,
     storage::s3::create_s3_client,
-    workers::events::Stream,
-    workers::{create_nats_client, Queue},
 };
 use sqlx::PgPool;
 

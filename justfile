@@ -39,7 +39,7 @@ create-db:
 drop-db:
     sqlx database drop
 
-mig_source := "crates/common/migrations"
+mig_source := "./migrations"
 
 mig: migrate
 migrate:
@@ -49,7 +49,7 @@ mig-add mig_name:
     sqlx migrate add {{ mig_name }} --source {{ mig_source }}
 
 revert:
-    sqlx migrate run --source {{ mig_source }}
+    sqlx migrate revert --source {{ mig_source }}
 
 # Utility commands
 sync: sync-web
