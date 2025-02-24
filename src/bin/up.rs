@@ -1,9 +1,10 @@
 use anyhow::Result;
 use farmhand::{
     db,
+    nats::create_nats_client,
     workers::{
-        self,
         events::{EVENT_PREFIX, EVENT_STREAM, JOB_PREFIX, JOB_STREAM, MESSAGE_PREFIX},
+        Queue, Stream,
     },
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -49,13 +50,13 @@ async fn init_project_nats() {
 
     // Connect to the NATS server
     tracing::debug!("Connecting to NATS server");
-    let nats_client = workers::create_nats_client()
+    let nats_client = create_nats_client()
         .await
         .expect("Failed to connect to NATS");
 
     // Create the event stream
     let all_events_subject = format!("{}.{}.>", MESSAGE_PREFIX, EVENT_PREFIX);
-    workers::Stream::new(
+    Stream::new(
         EVENT_STREAM.to_string(),
         Some("All Farmhand events".to_string()),
         vec![all_events_subject],
@@ -66,7 +67,7 @@ async fn init_project_nats() {
 
     // Create the job stream
     let all_jobs_subject = format!("{}.{}.>", MESSAGE_PREFIX, JOB_PREFIX);
-    workers::Queue::new(
+    Queue::new(
         JOB_STREAM.to_string(),
         Some("All Farmhand jobs".to_string()),
         vec![all_jobs_subject],

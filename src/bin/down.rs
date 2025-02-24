@@ -1,7 +1,8 @@
 use anyhow::Result;
 use farmhand::{
     db,
-    workers::{create_nats_client, Queue, Stream},
+    nats::create_nats_client,
+    workers::{Queue, Stream},
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 

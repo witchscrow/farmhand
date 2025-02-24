@@ -1,6 +1,7 @@
 pub mod api;
 pub mod db;
 pub mod error;
+pub mod nats;
 pub mod prelude;
 pub mod storage;
 pub mod vendors;
