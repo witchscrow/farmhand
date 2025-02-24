@@ -1,8 +1,7 @@
-use chat::ChatMessagePayload;
-
-pub mod chat;
 pub mod stream;
 pub use stream::Stream;
+
+use crate::vendors::ChatMessagePayload;
 
 /// Represents events we send and receive from NATS
 /// Primarily used to get the appropriate subject name for an event
