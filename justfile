@@ -39,7 +39,7 @@ create-db:
 drop-db:
     sqlx database drop
 
-mig_source := "crates/common/migrations"
+mig_source := "./migrations"
 
 mig: migrate
 migrate:
