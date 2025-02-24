@@ -161,7 +161,7 @@ pub async fn handle_webhook(
                             .into_response();
                     };
                     let Ok(last_active_stream) =
-                        Stream::find_most_recent_active_by_user_id(user_account.id, &state.db)
+                        Stream::find_most_recent_active_by_user_id(user_account.user_id, &state.db)
                             .await
                     else {
                         tracing::error!("Failed to find last active stream");
