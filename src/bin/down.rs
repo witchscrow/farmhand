@@ -1,5 +1,5 @@
 use anyhow::Result;
-use farmhand::{db, event::Stream, nats::create_nats_client, workers::Queue};
+use farmhand::{db, event::Stream, nats::create_nats_client, queue::Queue};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]

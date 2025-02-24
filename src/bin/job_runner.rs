@@ -3,7 +3,7 @@ use async_nats::jetstream::AckKind;
 use farmhand::{
     event::MESSAGE_PREFIX,
     nats::create_nats_client,
-    workers::{self, queue::process_message},
+    queue::{process_message, Queue},
 };
 use futures::StreamExt;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -20,7 +20,7 @@ async fn main() -> Result<()> {
     tracing::debug!("Connecting to NATS server");
     let nats_client = create_nats_client().await?;
     tracing::debug!("Connecting to queue");
-    let queue = workers::Queue::connect(nats_client)
+    let queue = Queue::connect(nats_client)
         .await
         .expect("Failed to create worker queue");
 

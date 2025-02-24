@@ -3,7 +3,7 @@ use farmhand::{
     db,
     event::{Stream, EVENT_PREFIX, EVENT_STREAM, JOB_PREFIX, JOB_STREAM, MESSAGE_PREFIX},
     nats::create_nats_client,
-    workers::Queue,
+    queue::Queue,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
