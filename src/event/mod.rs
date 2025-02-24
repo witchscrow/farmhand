@@ -18,7 +18,7 @@ pub enum Event {
 
 impl Event {
     pub fn get_subject(&self) -> String {
-        match self {
+        let raw_subject = match self {
             // farmhand.events.twitch.{broadcaster_name}.chat_message
             Event::ChatMessage(payload) => format!(
                 "{}.{}.twitch.events.{}.chat_message",
@@ -26,17 +26,19 @@ impl Event {
             ),
             // farmhand.events.twitch.{broadcaster_name}.stream_status
             Event::StreamStatus(payload) => {
-                let status = if payload.is_online() {
+                let status = if payload.started_at.is_some() {
                     "online"
                 } else {
                     "offline"
                 };
                 format!(
                     "{}.{}.twitch.events.{}.stream_{}",
-                    MESSAGE_PREFIX, EVENT_PREFIX, payload.event.broadcaster_user_name, status
+                    MESSAGE_PREFIX, EVENT_PREFIX, payload.broadcaster_user_name, status
                 )
             }
-        }
+        };
+        // Make sure the subject is lowercase
+        raw_subject.to_lowercase()
     }
 }
 
